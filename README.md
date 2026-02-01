@@ -6,50 +6,51 @@ This is a fork of the [original project](https://github.com/ayufan/pve-backup-se
 
 ## Overview
 
-This setup builds a Podman image for PBS using official Proxmox repositories and deploys it to a MicroOS host. It uses systemd generator (Quadlet) to manage the container service, ensuring seamless integration with the host OS.
+This setup builds a Podman image for PBS using official Proxmox repositories and deploys it to a MicroOS host. It supports two distinct build and deployment strategies to accommodate both automated CI/CD and direct host-level control.
 
 **Key Features:**
 *   **Immutable Infrastructure:** Designed specifically for OpenSUSE MicroOS.
 *   **Systemd Integration:** Managed via Quadlet (`.container` unit).
-*   **Persistence:** Config and Data stored in `/var/lib/config/pbs` and configurable datastore paths.
+*   **Dual Build Strategy:** Supports direct host builds (`build_on_microos.bash`) and automated GitHub Actions.
 *   **NFS Support:** Interactive setup for NFS-backed datastores with automated systemd mount generation.
-*   **Fast & Efficient:** Uses pre-compiled packages from Proxmox Trixie repositories.
+*   **Registry Support:** Official builds published to GitHub Container Registry (GHCR).
 
 ## Performance Note
 
-While the build process is now streamlined using pre-compiled packages, the initial setup and container initialization are optimized for low-power hardware.
+The build process is streamlined using pre-compiled packages from Proxmox Trixie repositories.
 
-**Hardware Profile:** Lenovo ThinkCentre M92p Tiny (Intel Core i5-3470T (4) @ 3.60 GHz).
-**Estimated Build Time:** ~2-5 minutes (using packages).
+**Target Hardware:** Lenovo ThinkCentre M92p Tiny (Intel Core i5-3470T (4) @ 3.60 GHz).
+**Estimated Build Time:** ~2-5 minutes (package-based).
 
 ## Prerequisites
 
-*   **Build Host:** Any machine with SSH access to the target.
 *   **Target Host:** OpenSUSE MicroOS with `podman` enabled.
 *   **Dependencies:** `nfs-utils` (for NFS datastores) and `screen` (for build persistence) are required. Run the following on the host:
     ```bash
     transactional-update pkg install nfs-utils screen && sync && sleep 5 && reboot
     ```
 
-## Getting Started
+## Deployment Options
 
-### 1. Build the Image
-Run the remote build script to pack the repository and trigger a build directly on your MicroOS host:
+### Option A: Use Automated GHCR Image (Fastest)
+Deploy using the image automatically built and published by GitHub Actions:
+1.  Run the setup script:
+    ```bash
+    ./setup_microos.bash
+    ```
+2.  When prompted for configuration, the setup will guide you through networking and storage.
 
-```bash
-./build_on_microos.bash
-```
-
-This will produce `localhost/proxmox-backup-server:latest`.
-
-### 2. Setup the Container
-Run the setup script to configure directories, firewall, and deploy the Quadlet:
-
-```bash
-./setup_microos.bash
-```
-
-The script will interactively ask for network, hostname, datastore name, and optional NFS mount details.
+### Option B: Build Directly on MicroOS Host (Control)
+If you prefer to compile the image directly on your target hardware:
+1.  Run the build script:
+    ```bash
+    ./build_on_microos.bash
+    ```
+    This packs the current repo and triggers a build on the host, producing `localhost/proxmox-backup-server:latest`.
+2.  Run the setup script:
+    ```bash
+    ./setup_microos.bash
+    ```
 
 ## Configuration
 
@@ -60,6 +61,13 @@ The script will interactively ask for network, hostname, datastore name, and opt
 *   **Config:** `/var/lib/config/pbs` -> `/etc/proxmox-backup`
 *   **Data:** Configurable (e.g., `/var/mnt/pbs_datastore`) -> `/var/lib/proxmox-backup`
 *   **Logs:** `/var/log/pbs` -> `/var/log/proxmox-backup`
+
+## CI/CD Pipeline
+
+The project includes a GitHub Actions workflow (`.github/workflows/pbs-auto-build.yml`) that:
+1.  Checks `git://git.proxmox.com` daily for new PBS releases.
+2.  Auto-updates the `VERSION` file in the repository.
+3.  Builds and pushes the new image to GHCR at `ghcr.io/ramonvanraaij/microos-pbs`.
 
 ## Author
 

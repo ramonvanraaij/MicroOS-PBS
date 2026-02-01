@@ -6,29 +6,27 @@ This is a fork of the [original project](https://github.com/ayufan/pve-backup-se
 
 ## Overview
 
-This setup builds a Docker/Podman image for PBS from source (including dependencies) and deploys it to a MicroOS host. It uses systemd generator (Quadlet) to manage the container service, ensuring seamless integration with the host OS.
+This setup builds a Podman image for PBS using official Proxmox repositories and deploys it to a MicroOS host. It uses systemd generator (Quadlet) to manage the container service, ensuring seamless integration with the host OS.
 
 **Key Features:**
 *   **Immutable Infrastructure:** Designed specifically for OpenSUSE MicroOS.
 *   **Systemd Integration:** Managed via Quadlet (`.container` unit).
-*   **Persistence:** Config and Data stored in `/var/lib/config/pbs` and `/var/lib/data/pbs`.
-*   **NFS Support:** Interactive setup for NFS-backed datastores.
-*   **Resource Efficient:** Optimized for low-power hardware like the Lenovo ThinkCentre Tiny.
+*   **Persistence:** Config and Data stored in `/var/lib/config/pbs` and configurable datastore paths.
+*   **NFS Support:** Interactive setup for NFS-backed datastores with automated systemd mount generation.
+*   **Fast & Efficient:** Uses pre-compiled packages from Proxmox Trixie repositories.
 
 ## Performance Note
 
-Building this image from source is a heavy process as it compiles numerous Proxmox dependencies and the PBS Rust codebase.
+While the build process is now streamlined using pre-compiled packages, the initial setup and container initialization are optimized for low-power hardware.
 
-**Hardware:** Lenovo ThinkCentre M92p Tiny (Intel Core i5-3470T (4) @ 3.60 GHz)
-**Estimated Build Time:** ~45-60 minutes.
-
-The build process is fully automated and runs inside a container on the target MicroOS host to ensure perfect compatibility and avoid local dependency issues.
+**Hardware Profile:** Lenovo ThinkCentre M92p Tiny (Intel Core i5-3470T (4) @ 3.60 GHz).
+**Estimated Build Time:** ~2-5 minutes (using packages).
 
 ## Prerequisites
 
 *   **Build Host:** Any machine with SSH access to the target.
 *   **Target Host:** OpenSUSE MicroOS with `podman` enabled.
-*   **Dependencies:** `nfs-utils` (for NFS datastores) and `screen` (for build persistence) are required.
+*   **Dependencies:** `nfs-utils` (for NFS datastores) and `screen` (for build persistence) are required. Run the following on the host:
     ```bash
     transactional-update pkg install nfs-utils screen && sync && sleep 5 && reboot
     ```
@@ -36,7 +34,7 @@ The build process is fully automated and runs inside a container on the target M
 ## Getting Started
 
 ### 1. Build the Image
-Run the remote build script to compile and tag the image directly on your MicroOS host:
+Run the remote build script to pack the repository and trigger a build directly on your MicroOS host:
 
 ```bash
 ./build_on_microos.bash
@@ -51,16 +49,16 @@ Run the setup script to configure directories, firewall, and deploy the Quadlet:
 ./setup_microos.bash
 ```
 
-The script will ask if you want to use an NFS mount for your datastore.
+The script will interactively ask for network, hostname, datastore name, and optional NFS mount details.
 
 ## Configuration
 
 *   **Web UI:** `https://<microos-ip>:8007`
-*   **Default Login:** `admin` / `pbspbs`
+*   **Default Login:** `admin@pbs` / `pbspbs`
 
 ### Storage Paths
 *   **Config:** `/var/lib/config/pbs` -> `/etc/proxmox-backup`
-*   **Data:** `/var/lib/data/pbs` -> `/var/lib/proxmox-backup` (Datastore)
+*   **Data:** Configurable (e.g., `/var/mnt/pbs_datastore`) -> `/var/lib/proxmox-backup`
 *   **Logs:** `/var/log/pbs` -> `/var/log/proxmox-backup`
 
 ## Author

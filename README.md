@@ -1,204 +1,73 @@
-# Proxmox Backup Server in a Container
+# MicroOS-PBS: Proxmox Backup Server on MicroOS (Podman Quadlet)
 
-- [![GitHub release (latest by date)](https://img.shields.io/github/v/release/ayufan/pve-backup-server-dockerfiles?label=GitHub%20Release)](https://github.com/ayufan/pve-backup-server-dockerfiles/releases) [![Docker Image Version (latest stable (amd64))](https://img.shields.io/docker/v/ayufan/proxmox-backup-server/latest?arch=amd64&label=Docker:%20latest)](https://hub.docker.com/r/ayufan/proxmox-backup-server/tags) [![Docker Image Version (latest stable (arm64))](https://img.shields.io/docker/v/ayufan/proxmox-backup-server/latest?arch=arm64&label=Docker:%20latest)](https://hub.docker.com/r/ayufan/proxmox-backup-server/tags)
-- [![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/ayufan/pve-backup-server-dockerfiles?include_prereleases&color=red&label=GitHub%20Pre-Release)](https://github.com/ayufan/pve-backup-server-dockerfiles/releases/latest) [![Docker Image Version (latest stable (amd64))](https://img.shields.io/docker/v/ayufan/proxmox-backup-server/beta?arch=amd64&color=red&label=Docker:%20beta)](https://hub.docker.com/r/ayufan/proxmox-backup-server/tags) [![Docker Image Version (latest stable (arm64))](https://img.shields.io/docker/v/ayufan/proxmox-backup-server/beta?arch=arm64&color=red&label=Docker:%20beta)](https://hub.docker.com/r/ayufan/proxmox-backup-server/tags)
+This repository provides a specialized build system and deployment configuration for running **Proxmox Backup Server (PBS)** as a container on **OpenSUSE MicroOS** using **Podman Quadlets**.
 
-This is an unofficial compilation of Proxmox Backup Server
-to run it in a container for AMD64 and ARM64.
+This is a fork of the [original project](https://github.com/ayufan/pve-backup-server-dockerfiles) by Kamil Trzciński, adapted specifically for immutable infrastructure and Podman-based environments.
 
-Running in a container might result in some functions not working
-properly. Feel free to create an issue to debug those.
+## Overview
 
-## Buy me a Coffee
+This setup builds a Docker/Podman image for PBS from source (including dependencies) and deploys it to a MicroOS host. It uses systemd generator (Quadlet) to manage the container service, ensuring seamless integration with the host OS.
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Y8Y8GCP24)
+**Key Features:**
+*   **Immutable Infrastructure:** Designed specifically for OpenSUSE MicroOS.
+*   **Systemd Integration:** Managed via Quadlet (`.container` unit).
+*   **Persistence:** Config and Data stored in `/var/lib/config/pbs` and `/var/lib/data/pbs`.
+*   **NFS Support:** Interactive setup for NFS-backed datastores.
+*   **Resource Efficient:** Optimized for low-power hardware like the Lenovo ThinkCentre Tiny.
 
-If you found it useful :)
+## Performance Note
 
-## Common problems
+Building this image from source is a heavy process as it compiles numerous Proxmox dependencies and the PBS Rust codebase.
 
-- Some people see authentication failure using `admin@pbs`: Ensure that `/run` is mounted to `tmpfs` which is requirement of `2.1.x`
-- Some Synology devices use a really old kernel (3.1), for such the https://github.com/ayufan/pve-backup-server-dockerfiles/pull/15
-  is needed, and image needs to be manually recompiled.
+**Hardware:** Lenovo ThinkCentre M92p Tiny (Intel Core i5-3470T (4) @ 3.60 GHz)
+**Estimated Build Time:** ~45-60 minutes.
 
-## Pre-built images
+The build process is fully automated and runs inside a container on the target MicroOS host to ensure perfect compatibility and avoid local dependency issues.
 
-For starting quickly all images are precompiled and hosted
-at https://hub.docker.com/r/ayufan/proxmox-backup-server.
+## Prerequisites
 
-Or:
+*   **Build Host:** Any machine with SSH access to the target.
+*   **Target Host:** OpenSUSE MicroOS with `podman` enabled.
+*   **NFS (Optional):** If using an NFS datastore, ensure `nfs-utils` is installed on MicroOS (`sudo transactional-update pkg install nfs-utils && reboot`).
 
-```bash
-# Latest stable / release tag
-docker pull ayufan/proxmox-backup-server:latest
+## Getting Started
 
-# Latest pre-release / beta tag
-docker pull ayufan/proxmox-backup-server:beta
-```
-
-Each [GitHub Releases](https://github.com/ayufan/pve-backup-server-dockerfiles/releases) includes the following binary assets:
-
-- `proxmox-backup-server-*.tgz` - contains all archived debian installation files with the `./install` script
-- `proxmox-backup-client-*.tgz` - contains a statically linked proxmox backup client
-
-## Run
+### 1. Build the Image
+Run the remote build script to compile and tag the image directly on your MicroOS host:
 
 ```bash
-wget https://raw.githubusercontent.com/ayufan/pve-backup-server-dockerfiles/refs/heads/main/docker-compose.yml
-docker-compose up -d
+./build_on_microos.bash
 ```
 
-**Run beta variant:**
+This will produce `localhost/proxmox-backup-server:latest`.
+
+### 2. Setup the Container
+Run the setup script to configure directories, firewall, and deploy the Quadlet:
 
 ```bash
-wget https://raw.githubusercontent.com/ayufan/pve-backup-server-dockerfiles/refs/heads/main/docker-compose.yml
-TAG=beta docker-compose up -d
+./setup_microos.bash
 ```
 
-Then login to `https://<ip>:8007/` with `admin / pbspbs`.
-After that change a password.
+The script will ask if you want to use an NFS mount for your datastore.
 
-See the example [docker-compose.yml](./docker-compose.yml).
+## Configuration
 
-## Features
+*   **Web UI:** `https://<microos-ip>:8007`
+*   **Default Login:** `admin` / `pbspbs`
 
-The core features should work, but there are ones do not work due to container architecture:
-
-- ZFS: it is not installed in a container
-- Shell: since the PVE (not PAM) authentication is being used, and since the shell access does not make sense in an ephemeral container environment
-- PAM authentication: since containers are by definition ephemeral and no `/etc/` configs are being persisted
-
-## Changelog
-
-See [Releases](https://github.com/ayufan/pve-backup-server-dockerfiles/releases).
-
-## Configure
-
-### 1. Add to Proxmox VE
-
-Since it runs in a container, it is by default self-signed.
-Follow the tutorial: https://pbs.proxmox.com/docs/pve-integration.html.
-
-You might need to read a PBS fingerprint:
-
-```bash
-docker-compose exec server proxmox-backup-manager cert info | grep Fingerprint
-```
-
-### 2. Add a new directory to store data
-
-Create a new file (or merge with existing): `docker-compose.override.yml`:
-
-```yaml
-version: '2.1'
-
-services:
-  pbs:
-    volumes:
-      - backups:/backups
-
-volumes:
-  backups:
-    driver: local
-    driver_opts:
-      type: ''
-      o: bind
-      device: /srv/dev-disk-by-label-backups
-```
-
-Then, add a new datastore in a PBS: `https://<IP>:8007/`.
-
-### 3. Configure TZ (optional)
-
-If you are running in Docker it might be advised to configure timezone.
-
-Create a new file (or merge with existing): `docker-compose.override.yml`:
-
-```yaml
-version: '2.1'
-
-services:
-  pbs:
-    environment:
-      TZ: Europe/Warsaw
-```
-
-### 4. Allow smartctl access
-
-To be able to view SMART parameters via UI you need to expose drives and give container
-a special capability.
-
-Create a new file (or merge with existing): `docker-compose.override.yml`:
-
-```yaml
-version: '2.1'
-
-services:
-  pbs:
-    devices:
-      - /dev/sda
-      - /dev/sdb
-    cap_add:
-      - SYS_RAWIO
-```
-
-### 5. Persist config, graphs, and logs (optional, but advised)
-
-Create a new file (or merge with existing): `docker-compose.override.yml`:
-
-```yaml
-version: '2.1'
-
-volumes:
-  pbs_etc:
-    driver: local
-    driver_opts:
-      type: ''
-      o: bind
-      device: /srv/pbs/etc
-  pbs_logs:
-    driver: local
-    driver_opts:
-      type: ''
-      o: bind
-      device: /srv/pbs/logs
-  pbs_lib:
-    driver: local
-    driver_opts:
-      type: ''
-      o: bind
-      device: /srv/pbs/lib
-```
-
-## Install server on bare-metal or virtualized host
-
-Docker is convienient, but in some cases it might be simply better to install natively.
-
-You can pull compiled `*.deb` files from [GitHub Releases](https://github.com/ayufan/pve-backup-server-dockerfiles/releases).
-
-Replace the `v4.0.12` with the latest version.
-
-```bash
-wget https://github.com/ayufan/pve-backup-server-dockerfiles/releases/download/v4.0.12/proxmox-backup-server-v4.0.12-$(dpkg --print-architecture).tgz
-tar zxf proxmox-backup-server-*.tgz
-proxmox-backup-server-*/install
-```
-
-## Use static client binary
-
-Similar to server, the client binary is available for various architectures. The `arm32` is considered unstable, and should only be able to backup, but likely cannot be used to restore data.
-
-```bash
-wget https://github.com/ayufan/pve-backup-server-dockerfiles/releases/download/v4.0.12/proxmox-backup-client-v4.0.12-$(dpkg --print-architecture).tgz
-tar zxf proxmox-backup-client-*.tgz
-proxmox-backup-client-*/proxmox-backup-client.sh
-```
-
-## Build on your own / Recompile latest version or main
-
-Refer to [PROCESS.md](PROCESS.md).
+### Storage Paths
+*   **Config:** `/var/lib/config/pbs` -> `/etc/proxmox-backup`
+*   **Data:** `/var/lib/data/pbs` -> `/var/lib/proxmox-backup` (Datastore)
+*   **Logs:** `/var/log/pbs` -> `/var/log/proxmox-backup`
 
 ## Author
 
-This is just built by Kamil Trzciński, 2020-2025
-from the sources found on http://git.proxmox.com/.
+Originally built by Kamil Trzciński, 2020-2025.
+Specialized fork for MicroOS maintained by Rámon van Raaij (2026).
+- **Bluesky:** [@ramonvanraaij.nl](https://bsky.app/profile/ramonvanraaij.nl)
+- **GitHub:** [ramonvanraaij](https://github.com/ramonvanraaij)
+- **Website:** [ramon.vanraaij.eu](https://ramon.vanraaij.eu)
+
+## Buy me a Coffee
+
+<p><strong>Buy me a coffee 🙂</strong><br>If you found this fork helpful, informative, or if it saved or made you some money, consider buying me a coffee. Your support means a lot and motivates me to keep writing.<br>You can do so via <a href="https://bunq.me/ramonvanraaij" rel="nofollow">bunq.me</a> (bunq, iDeal, Bankcontact and Credit- or Debit cards) or <a href="http://paypal.me/ramonvanraaij" rel="nofollow">PayPal</a> (PayPal and Credit- or Debit cards). Thank you!</p>

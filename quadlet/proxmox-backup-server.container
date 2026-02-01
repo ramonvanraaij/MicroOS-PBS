@@ -1,0 +1,25 @@
+[Unit]
+Description=Proxmox Backup Server
+After=network-online.target local-fs.target
+
+[Container]
+Image=localhost/proxmox-backup-server:latest
+# Using infra.network as per MicroOS log
+Network=infra.network
+PublishPort=8007:8007
+
+# Persistence
+# Config
+Volume=/var/lib/config/pbs:/etc/proxmox-backup:Z
+Volume=/var/lib/data/pbs:/var/lib/proxmox-backup:Z
+# Logs
+Volume=/var/log/pbs:/var/log/proxmox-backup:Z
+
+# Capabilities
+AddCapability=SYS_RAWIO
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

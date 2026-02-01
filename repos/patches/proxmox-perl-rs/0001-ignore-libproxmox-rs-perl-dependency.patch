@@ -1,11 +1,12 @@
 diff --git a/pve-rs/debian/control b/pve-rs/debian/control
+index 2743712..6dfe261 100644
 --- a/pve-rs/debian/control
 +++ b/pve-rs/debian/control
 @@ -4,7 +4,6 @@ Priority: optional
  Build-Depends: cargo:native <!nocheck>,
                 debhelper-compat (= 13),
-                dh-cargo,
+                dh-cargo (>= 25),
 -               libproxmox-rs-perl (>= 0.3.5),
-                libstd-rust-dev <!nocheck>,
-                perlmod-bin (>= 0.2.1-1),
-                rustc:native <!nocheck>,
+                librust-anyhow-1+default-dev,
+                librust-base32-0.4+default-dev,
+                librust-hex-0.4+default-dev,

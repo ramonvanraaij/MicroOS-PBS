@@ -1,5 +1,9 @@
 # MicroOS-PBS: Proxmox Backup Server on MicroOS (Podman Quadlet)
 
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/ramonvanraaij/microos-pbs?label=GitHub%20Release)](https://github.com/ramonvanraaij/microos-pbs/releases)
+[![Auto-Build PBS Container](https://github.com/ramonvanraaij/microos-pbs/actions/workflows/pbs-auto-build.yml/badge.svg)](https://github.com/ramonvanraaij/microos-pbs/actions/workflows/pbs-auto-build.yml)
+[![GitHub Container Registry](https://img.shields.io/badge/GHCR-latest-blue?logo=github)](https://github.com/ramonvanraaij/microos-pbs/pkgs/container/microos-pbs)
+
 This repository provides a specialized build system and deployment configuration for running **Proxmox Backup Server (PBS)** as a container on **OpenSUSE MicroOS** using **Podman Quadlets**.
 
 This project is an extensive refactor and evolution of the [original work](https://github.com/ayufan/pve-backup-server-dockerfiles) by Kamil Trzciński, specialized for **OpenSUSE MicroOS** and **Podman Quadlets**.

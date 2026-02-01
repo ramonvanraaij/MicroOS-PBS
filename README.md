@@ -28,7 +28,10 @@ The build process is fully automated and runs inside a container on the target M
 
 *   **Build Host:** Any machine with SSH access to the target.
 *   **Target Host:** OpenSUSE MicroOS with `podman` enabled.
-*   **NFS (Optional):** If using an NFS datastore, ensure `nfs-utils` is installed on MicroOS (`sudo transactional-update pkg install nfs-utils && reboot`).
+*   **Dependencies:** `nfs-utils` (for NFS datastores) and `screen` (for build persistence) are required.
+    ```bash
+    transactional-update pkg install nfs-utils screen && sync && sleep 5 && reboot
+    ```
 
 ## Getting Started
 

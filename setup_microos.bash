@@ -17,13 +17,10 @@
 # 4. Restarts and verifies the pbs service startup.
 #
 # Usage:
-# sudo ./setup_microos.bash
+# ./setup_microos.bash
 # =================================================================
 
 set -o errexit -o nounset -o pipefail
-
-# --- Root Check ---
-# Removed per user request to allow running without local sudo (ssh handles it)
 
 # --- Interactive Configuration ---
 echo "--- MicroOS Host Configuration ---"
@@ -52,6 +49,17 @@ fi
 REMOTE_TARGET="${REMOTE_USER}@${REMOTE_HOST}"
 SSH_CMD="ssh -t ${SSH_OPTS}"
 SSH_PIPE_CMD="ssh ${SSH_OPTS}"
+
+# --- Image Configuration ---
+echo ""
+echo "--- Container Image ---"
+echo "1) Local (localhost/proxmox-backup-server:latest)"
+echo "2) GHCR (ghcr.io/ramonvanraaij/microos-pbs:latest)"
+read -p "Select image source [1]: " IMAGE_CHOICE
+case "$IMAGE_CHOICE" in
+    2) PBS_IMAGE="ghcr.io/ramonvanraaij/microos-pbs:latest" ;;
+    *) PBS_IMAGE="localhost/proxmox-backup-server:latest" ;;
+esac
 
 # --- Network Configuration ---
 echo ""
@@ -87,6 +95,7 @@ fi
 
 echo ""
 echo ">> Target: $REMOTE_TARGET"
+echo ">> Image: $PBS_IMAGE"
 echo ">> Network: $PODMAN_NETWORK"
 echo ">> Hostname: $PBS_HOSTNAME"
 if [[ -n "$DATASTORE_NAME" ]]; then
@@ -100,6 +109,9 @@ echo ">> Preparing Quadlet and Setup Script..."
 QUADLET_TMP=$(mktemp /tmp/pbs-quadlet.XXXXXX)
 cp quadlet/proxmox-backup-server.container "$QUADLET_TMP"
 
+# Update Image
+sed -i "s|^Image=.*|Image=$PBS_IMAGE|" "$QUADLET_TMP"
+
 # Update Network
 sed -i "s/^Network=.*/Network=$PODMAN_NETWORK/" "$QUADLET_TMP"
 
@@ -110,7 +122,7 @@ sed -i "s/^PodmanArgs=--hostname=.*/PodmanArgs=--hostname=$PBS_HOSTNAME/" "$QUAD
 sed -i "s|Volume=/var/lib/data/pbs|Volume=${LOCAL_MOUNT_POINT}|" "$QUADLET_TMP"
 
 # Increase startup timeout
-sed -i "s/^TimeoutStartSec=.*/TimeoutStartSec=300/" "$QUADLET_TMP"
+sed -i "/^\t\[Service\]/ a TimeoutStartSec=300" "$QUADLET_TMP"
 
 if [[ "$USE_NFS" =~ ^[Yy]$ ]]; then
     # Add dependency on NFS mount to Quadlet
@@ -120,11 +132,8 @@ if [[ "$USE_NFS" =~ ^[Yy]$ ]]; then
         LOCAL_MOUNT_UNIT_NAME=$(echo "${LOCAL_MOUNT_POINT#/}" | tr '/' '-').mount
     fi
     
-    # Append unit name to After= line
     sed -i "s/^After=.*/& $LOCAL_MOUNT_UNIT_NAME/" "$QUADLET_TMP"
-    
-    # Add Requires= line after [Unit] header
-    sed -i "/^\[Unit\]/a Requires=$LOCAL_MOUNT_UNIT_NAME" "$QUADLET_TMP"
+sed -i "/^\[Unit\]/ a Requires=$LOCAL_MOUNT_UNIT_NAME" "$QUADLET_TMP"
     
     # Create Mount Unit
     MOUNT_UNIT_TMP=$(mktemp /tmp/pbs-mount.XXXXXX)
@@ -150,7 +159,7 @@ REMOTE_SETUP_SCRIPT_TMP=$(mktemp /tmp/pbs-remote-setup.XXXXXX)
 # Header with injected variables
 cat <<EOF > "$REMOTE_SETUP_SCRIPT_TMP"
 #!/bin/bash
-set -e
+set -o errexit -o nounset -o pipefail
 USE_NFS="$USE_NFS"
 LOCAL_MOUNT_POINT="$LOCAL_MOUNT_POINT"
 DATASTORE_NAME="$DATASTORE_NAME"
@@ -190,7 +199,6 @@ chown root:root /etc/containers/systemd/proxmox-backup-server.container
 if [[ "$USE_NFS" =~ ^[Yy]$ ]]; then
     echo '>> [Remote] Installing NFS Mount Unit...'
     
-    # Calculate unit name ON REMOTE to match systemd expectation exactly
     if command -v systemd-escape >/dev/null; then
         R_MOUNT_UNIT_NAME=$(systemd-escape --path --suffix=mount "$LOCAL_MOUNT_POINT")
     else
@@ -198,7 +206,7 @@ if [[ "$USE_NFS" =~ ^[Yy]$ ]]; then
     fi
     
     # Display cleaner name
-    DISPLAY_NAME=$(echo "$R_MOUNT_UNIT_NAME" | sed 's/\x2d/-/g')
+    DISPLAY_NAME=$(echo "$R_MOUNT_UNIT_NAME" | sed 's/\\x2d/-/g')
     echo ">> [Remote] Mount Unit: $DISPLAY_NAME"
     
     mv /tmp/var-lib-data-pbs.mount "/etc/systemd/system/$R_MOUNT_UNIT_NAME"

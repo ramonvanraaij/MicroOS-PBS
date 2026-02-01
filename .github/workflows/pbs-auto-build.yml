@@ -1,0 +1,74 @@
+name: Auto-Build PBS Container
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Run every 24 hours
+  workflow_dispatch:      # Allow manual run
+
+jobs:
+  check-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Check Upstream Version
+        id: upstream
+        run: |
+          # Fetch the latest tag from Proxmox Git
+          LATEST=$(git ls-remote --tags --sort="v:refname" git://git.proxmox.com/git/proxmox-backup.git | cut -d/ -f3 | grep -E '^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$' | tail -n 1)
+          
+          if [ -z "$LATEST" ]; then
+            echo "Error: Could not extract version number."
+            exit 1
+          fi
+          
+          echo "Found upstream version: $LATEST"
+          echo "version=$LATEST" >> $GITHUB_OUTPUT
+
+      - name: Compare Versions
+        id: check
+        run: |
+          # Remove 'v' prefix if present in local file for comparison
+          CURRENT=$(cat VERSION | sed 's/^v//')
+          echo "Current local version: $CURRENT"
+          if [ "$CURRENT" != "${{ steps.upstream.outputs.version }}" ]; then
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+          else
+            echo "update_needed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update Repo Version
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          echo "v${{ steps.upstream.outputs.version }}" > VERSION
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION
+          git commit -m "chore: Auto-update version to ${{ steps.upstream.outputs.version }}"
+          git push
+
+      - name: Login to GHCR
+        if: steps.check.outputs.update_needed == 'true' || github.event_name == 'workflow_dispatch'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push
+        if: steps.check.outputs.update_needed == 'true' || github.event_name == 'workflow_dispatch'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: dockerfiles/Dockerfile.build
+          target: release_env
+          push: true
+          build-args: |
+            VERSION=${{ steps.upstream.outputs.version }}
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ steps.upstream.outputs.version }}

@@ -76,3 +76,18 @@ jobs:
           tags: |
             ghcr.io/${{ steps.repo.outputs.name }}:latest
             ghcr.io/${{ steps.repo.outputs.name }}:${{ steps.upstream.outputs.version }}
+
+      - name: Create GitHub Release
+        if: steps.check.outputs.update_needed == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ steps.upstream.outputs.version }}" \
+            --title "PBS v${{ steps.upstream.outputs.version }} for MicroOS" \
+            --notes "Automated release triggered by upstream update to Proxmox Backup Server v${{ steps.upstream.outputs.version }}.
+
+            **Key Features:**
+            - **Podman Quadlet Integration:** Native systemd service generation with Tmpfs and Hostname fixes.
+            - **NFS Support:** Interactive setup for external datastores with automated systemd mount generation.
+            - **Dual Build Strategy:** Supports direct host builds and automated GitHub Actions.
+            - **Fast Builds:** Optimized image using Proxmox Trixie repositories."

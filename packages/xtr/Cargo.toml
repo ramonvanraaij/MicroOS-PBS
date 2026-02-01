@@ -2,12 +2,12 @@
 name = "xtr"
 version = "0.1.11"
 edition = "2021"
-authors = ["Kamil Trzciński <ayufan@ayufan.eu>"]
+authors = ["Kamil Trzciński <ayufan@ayufan.eu>", "Rámon van Raaij"]
 description = "deb for xtr binary"
 build = "build.rs"
 
 [package.metadata.deb]
-maintainer = "Kamil Trzciński <ayufan@ayufan.eu>"
+maintainer = "Rámon van Raaij <https://ramon.vanraaij.eu/contact/>"
 depends = "$auto"
 section = "utils"
 priority = "optional"

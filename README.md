@@ -2,7 +2,7 @@
 
 This repository provides a specialized build system and deployment configuration for running **Proxmox Backup Server (PBS)** as a container on **OpenSUSE MicroOS** using **Podman Quadlets**.
 
-This is a fork of the [original project](https://github.com/ayufan/pve-backup-server-dockerfiles) by Kamil Trzciński, adapted specifically for immutable infrastructure and Podman-based environments.
+This project is an extensive refactor and evolution of the [original work](https://github.com/ayufan/pve-backup-server-dockerfiles) by Kamil Trzciński, specialized for **OpenSUSE MicroOS** and **Podman Quadlets**.
 
 ## Overview
 
@@ -20,6 +20,7 @@ This setup builds a Podman image for PBS using official Proxmox repositories and
 The build process is streamlined using pre-compiled packages from Proxmox Trixie repositories.
 
 **Target Hardware:** Lenovo ThinkCentre M92p Tiny (Intel Core i5-3470T (4) @ 3.60 GHz).
+
 **Estimated Build Time:** ~2-5 minutes (package-based).
 
 ## Prerequisites
@@ -69,10 +70,11 @@ The project includes a GitHub Actions workflow (`.github/workflows/pbs-auto-buil
 2.  Auto-updates the `VERSION` file in the repository.
 3.  Builds and pushes the new image to GHCR at `ghcr.io/ramonvanraaij/microos-pbs`.
 
-## Author
+## Credits & Maintenance
 
-Originally built by Kamil Trzciński, 2020-2025.
-Specialized fork for MicroOS maintained by Rámon van Raaij (2026).
+This project is developed and maintained by **Rámon van Raaij** (2026). It is an extensive refactor and specialization for MicroOS/Podman based on the [original project](https://github.com/ayufan/pve-backup-server-dockerfiles) by Kamil Trzciński (2020-2025).
+
+**Maintainer Info:**
 - **Bluesky:** [@ramonvanraaij.nl](https://bsky.app/profile/ramonvanraaij.nl)
 - **GitHub:** [ramonvanraaij](https://github.com/ramonvanraaij)
 - **Website:** [ramon.vanraaij.eu](https://ramon.vanraaij.eu)

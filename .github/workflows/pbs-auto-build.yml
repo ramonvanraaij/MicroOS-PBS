@@ -18,8 +18,8 @@ jobs:
       - name: Check Upstream Version
         id: upstream
         run: |
-          # Fetch the latest tag from Proxmox Git
-          LATEST=$(git ls-remote --tags --sort="v:refname" git://git.proxmox.com/git/proxmox-backup.git | cut -d/ -f3 | grep -E '^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$' | tail -n 1)
+          # Fetch the latest version from Proxmox Git Summary page
+          LATEST=$(curl -s "https://git.proxmox.com/?p=proxmox-backup.git;a=summary" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+-[0-9]+' | head -n 1)
           
           if [ -z "$LATEST" ]; then
             echo "Error: Could not extract version number."

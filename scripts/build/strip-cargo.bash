@@ -35,6 +35,10 @@ EOF
 
     # change `dh-cargo (>= 25),` to `dh-cargo`
     sed -i 's/dh-cargo\s*(>=.*)/dh-cargo/g' "$debian_control"
+
+    # remove libproxmox-rs-perl dependency (circular/missing)
+    sed -i '/^\s*libproxmox-rs-perl/d' "$debian_control"
+
     git -C "$package" add "$(realpath "$debian_control")" || true
   done < <(find "$package" -wholename '*/debian/control')
 

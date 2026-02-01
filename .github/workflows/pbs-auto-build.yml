@@ -59,6 +59,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Lowercase Repository Name
+        id: repo
+        run: echo "name=${GITHUB_REPOSITORY,,}" >> $GITHUB_OUTPUT
+
       - name: Build and Push
         if: steps.check.outputs.update_needed == 'true' || github.event_name == 'workflow_dispatch'
         uses: docker/build-push-action@v5
@@ -70,5 +74,5 @@ jobs:
           build-args: |
             VERSION=${{ steps.upstream.outputs.version }}
           tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ steps.upstream.outputs.version }}
+            ghcr.io/${{ steps.repo.outputs.name }}:latest
+            ghcr.io/${{ steps.repo.outputs.name }}:${{ steps.upstream.outputs.version }}

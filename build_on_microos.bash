@@ -1,16 +1,25 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # build_on_microos.bash
 # =================================================================
 # Build Proxmox Backup Server Image remotely on MicroOS
 #
 # Copyright (c) 2026 Rámon van Raaij
-# Fork Maintainer: Rámon van Raaij | Bluesky: @ramonvanraaij.nl | GitHub: https://github.com/ramonvanraaij | Website: https://ramon.vanraaij.eu
+# License: MIT
+# Author: Rámon van Raaij | Bluesky: @ramonvanraaij.nl | GitHub: https://github.com/ramonvanraaij | Website: https://ramon.vanraaij.eu
 #
 # This script packs the current repository and performs a remote 
 # build using Podman on an OpenSUSE MicroOS host.
+#
+# It performs the following actions:
+# 1. Packs the source code into a tarball.
+# 2. Uploads the tarball to the remote host.
+# 3. Executes the build process inside a screen session to prevent timeouts.
+#
+# Usage:
+# ./build_on_microos.bash
 # =================================================================
 
-set -e
+set -o errexit -o nounset -o pipefail
 
 # --- Interactive Configuration ---
 echo "--- MicroOS Connection Details ---"

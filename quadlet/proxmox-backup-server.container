@@ -4,8 +4,8 @@ After=network-online.target local-fs.target
 
 [Container]
 Image=localhost/proxmox-backup-server:latest
-# Using infra.network as per MicroOS log
-Network=infra.network
+PodmanArgs=--hostname=MicroOS-PBS
+Network=host
 PublishPort=8007:8007
 
 # Persistence
@@ -17,6 +17,9 @@ Volume=/var/log/pbs:/var/log/proxmox-backup:Z
 
 # Capabilities
 AddCapability=SYS_RAWIO
+
+# Mount /run as tmpfs (Required by PBS for shared memory/locking)
+Tmpfs=/run
 
 [Service]
 Restart=always

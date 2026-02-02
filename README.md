@@ -2,7 +2,7 @@
 
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/ramonvanraaij/microos-pbs?label=GitHub%20Release&style=flat-square)](https://github.com/ramonvanraaij/microos-pbs/releases)
 [![Auto-Build PBS Container](https://github.com/ramonvanraaij/microos-pbs/actions/workflows/pbs-auto-build.yml/badge.svg?style=flat-square)](https://github.com/ramonvanraaij/microos-pbs/actions/workflows/pbs-auto-build.yml)
-[![GitHub Container Registry](https://img.shields.io/badge/GHCR-latest-blue?logo=github&style=flat-square)](https://github.com/ramonvanraaij/microos-pbs/pkgs/container/microos-pbs)
+[![GitHub Container Registry](https://img.shields.io/badge/GHCR-latest-blue?logo=github&style=flat-square)](https://github.com/ramonvanraaij/microos-pbs/pkgs/container/proxmox-backup-server)
 
 This repository provides a specialized build system and deployment configuration for running **Proxmox Backup Server (PBS)** as a high-performance container on **OpenSUSE MicroOS** using **Podman Quadlets**.
 
@@ -84,7 +84,7 @@ If you prefer to compile the image directly on your target hardware:
 The project includes a robust GitHub Actions workflow (`.github/workflows/pbs-auto-build.yml`) that:
 1.  **Monitors Upstream:** Checks `git://git.proxmox.com` daily for new PBS releases.
 2.  **Auto-Updates:** Syncs the `VERSION` file in the repository.
-3.  **Distributes:** Builds and pushes new images to GHCR at `ghcr.io/ramonvanraaij/microos-pbs`.
+3.  **Distributes:** Builds and pushes new images to GHCR at `ghcr.io/ramonvanraaij/proxmox-backup-server`.
 
 ---
 

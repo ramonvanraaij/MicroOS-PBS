@@ -54,10 +54,10 @@ SSH_PIPE_CMD="ssh ${SSH_OPTS}"
 echo ""
 echo "--- Container Image ---"
 echo "1) Local (localhost/proxmox-backup-server:latest)"
-echo "2) GHCR (ghcr.io/ramonvanraaij/microos-pbs:latest)"
+echo "2) GHCR (ghcr.io/ramonvanraaij/proxmox-backup-server:latest)"
 read -p "Select image source [1]: " IMAGE_CHOICE
 case "$IMAGE_CHOICE" in
-    2) PBS_IMAGE="ghcr.io/ramonvanraaij/microos-pbs:latest" ;;
+    2) PBS_IMAGE="ghcr.io/ramonvanraaij/proxmox-backup-server:latest" ;;
     *) PBS_IMAGE="localhost/proxmox-backup-server:latest" ;;
 esac
 

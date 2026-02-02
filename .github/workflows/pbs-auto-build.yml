@@ -74,8 +74,8 @@ jobs:
           build-args: |
             VERSION=${{ steps.upstream.outputs.version }}
           tags: |
-            ghcr.io/${{ steps.repo.outputs.name }}:latest
-            ghcr.io/${{ steps.repo.outputs.name }}:${{ steps.upstream.outputs.version }}
+            ghcr.io/ramonvanraaij/proxmox-backup-server:latest
+            ghcr.io/ramonvanraaij/proxmox-backup-server:${{ steps.upstream.outputs.version }}
 
       - name: Create GitHub Release
         if: steps.check.outputs.update_needed == 'true'

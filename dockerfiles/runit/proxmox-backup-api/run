@@ -8,6 +8,11 @@ fi
 chown backup:backup /etc/proxmox-backup
 chmod 700 /etc/proxmox-backup
 
+# ensure that /run/proxmox-backup exists and is owned by backup
+mkdir -p /run/proxmox-backup
+chown backup:backup /run/proxmox-backup
+chmod 700 /run/proxmox-backup
+
 # ensure that lib is owned by backup (due to jobstates and rrdb)
 chown backup:backup /var/lib/proxmox-backup
 chmod 700 /var/lib/proxmox-backup

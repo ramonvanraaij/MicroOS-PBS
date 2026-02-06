@@ -6,6 +6,7 @@
 # Copyright (c) 2026 Rámon van Raaij
 # License: MIT
 # Author: Rámon van Raaij | Bluesky: @ramonvanraaij.nl | GitHub: https://github.com/ramonvanraaij | Website: https://ramon.vanraaij.eu
+# Repo: https://github.com/ramonvanraaij/microos-pbs
 #
 # This script packs the current repository and performs a remote 
 # build using Podman on an OpenSUSE MicroOS host.

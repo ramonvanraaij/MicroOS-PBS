@@ -6,18 +6,10 @@
 # Copyright (c) 2026 Rámon van Raaij
 # License: MIT
 # Author: Rámon van Raaij | Bluesky: @ramonvanraaij.nl | GitHub: https://github.com/ramonvanraaij | Website: https://ramon.vanraaij.eu
+# Repo: https://github.com/ramonvanraaij/MicroOS-PBS
 #
 # This script performs an interactive setup of Proxmox Backup Server
 # on an OpenSUSE MicroOS host using Podman Quadlets.
-#
-# It performs the following actions:
-# 1. Prompts for host, network, hostname, and NFS configuration.
-# 2. Uploads the Quadlet definition and a remote setup script.
-# 3. Configures directories, permissions, firewall, and NFS mounts.
-# 4. Restarts and verifies the pbs service startup.
-#
-# Usage:
-# ./setup_microos.bash
 # =================================================================
 
 set -o errexit -o nounset -o pipefail
@@ -50,6 +42,21 @@ REMOTE_TARGET="${REMOTE_USER}@${REMOTE_HOST}"
 SSH_CMD="ssh -t ${SSH_OPTS}"
 SSH_PIPE_CMD="ssh ${SSH_OPTS}"
 
+# --- Instance Configuration ---
+echo ""
+echo "--- Instance Configuration ---"
+read -p "Container Name [proxmox-backup-server]: " PBS_CONTAINER_NAME
+PBS_CONTAINER_NAME=${PBS_CONTAINER_NAME:-proxmox-backup-server}
+
+read -p "Container Port [8007]: " PBS_PORT
+PBS_PORT=${PBS_PORT:-8007}
+
+read -p "Host Config Path [/var/lib/config/pbs]: " HOST_CONFIG_PATH
+HOST_CONFIG_PATH=${HOST_CONFIG_PATH:-/var/lib/config/pbs}
+
+read -p "Host Logs Path [/var/log/pbs]: " HOST_LOGS_PATH
+HOST_LOGS_PATH=${HOST_LOGS_PATH:-/var/log/pbs}
+
 # --- Image Configuration ---
 echo ""
 echo "--- Container Image ---"
@@ -67,6 +74,16 @@ echo "--- Podman Network ---"
 read -p "Podman Network [host]: " PODMAN_NETWORK
 PODMAN_NETWORK=${PODMAN_NETWORK:-host}
 
+if [[ "$PODMAN_NETWORK" == "host" && "$PBS_PORT" != "8007" ]]; then
+    echo "WARNING: Port mapping ($PBS_PORT:8007) is NOT supported in 'host' network mode."
+    echo "The service will still listen on port 8007 on the host."
+    read -p "Switch to 'bridge' network instead? [Y/n]: " SWITCH_NET
+    if [[ ! "$SWITCH_NET" =~ ^[Nn]$ ]]; then
+        PODMAN_NETWORK="bridge"
+        echo ">> Switched to bridge network."
+    fi
+fi
+
 # --- PBS Hostname ---
 echo ""
 read -p "PBS Hostname [MicroOS-PBS]: " PBS_HOSTNAME
@@ -75,8 +92,6 @@ PBS_HOSTNAME=${PBS_HOSTNAME:-MicroOS-PBS}
 # --- NFS Configuration ---
 echo ""
 echo "--- NFS Datastore Configuration ---"
-echo "Configure an existing NFS share to be used as the PBS Datastore."
-echo "This will be mounted on the host and then passed into the container."
 read -p "Use NFS for the PBS Datastore? [y/N]: " USE_NFS
 if [[ "$USE_NFS" =~ ^[Yy]$ ]]; then
     read -p "NFS Server IP: " NFS_IP
@@ -86,8 +101,6 @@ if [[ "$USE_NFS" =~ ^[Yy]$ ]]; then
     
     read -p "Datastore Name [default]: " DATASTORE_NAME
     DATASTORE_NAME=${DATASTORE_NAME:-default}
-    
-    if [[ -z "$NFS_IP" || -z "$NFS_PATH" ]]; then echo "NFS details required"; exit 1; fi
 else
     LOCAL_MOUNT_POINT="/var/lib/data/pbs"
     DATASTORE_NAME=""
@@ -95,12 +108,13 @@ fi
 
 echo ""
 echo ">> Target: $REMOTE_TARGET"
+echo ">> Instance: $PBS_CONTAINER_NAME (Port: $PBS_PORT)"
 echo ">> Image: $PBS_IMAGE"
 echo ">> Network: $PODMAN_NETWORK"
 echo ">> Hostname: $PBS_HOSTNAME"
-if [[ -n "$DATASTORE_NAME" ]]; then
-    echo ">> Datastore: $DATASTORE_NAME (NFS)"
-fi
+echo ">> Config Path: $HOST_CONFIG_PATH"
+echo ">> Logs Path: $HOST_LOGS_PATH"
+if [[ -n "$DATASTORE_NAME" ]]; then echo ">> Datastore: $DATASTORE_NAME (NFS)"; fi
 echo ">> Data Path: $LOCAL_MOUNT_POINT"
 echo "----------------------------------"
 
@@ -109,33 +123,21 @@ echo ">> Preparing Quadlet and Setup Script..."
 QUADLET_TMP=$(mktemp /tmp/pbs-quadlet.XXXXXX)
 cp quadlet/proxmox-backup-server.container "$QUADLET_TMP"
 
-# Update Image
+# Update Quadlet
+sed -i "s/^ContainerName=.*/ContainerName=$PBS_CONTAINER_NAME/" "$QUADLET_TMP"
 sed -i "s|^Image=.*|Image=$PBS_IMAGE|" "$QUADLET_TMP"
-
-# Update Network
 sed -i "s/^Network=.*/Network=$PODMAN_NETWORK/" "$QUADLET_TMP"
-
-# Update Hostname (Using PodmanArgs for compatibility)
 sed -i "s/^PodmanArgs=--hostname=.*/PodmanArgs=--hostname=$PBS_HOSTNAME/" "$QUADLET_TMP"
-
-# Update Data Volume Path
+sed -i "s/^PublishPort=.*/PublishPort=$PBS_PORT:8007/" "$QUADLET_TMP"
+sed -i "s|Volume=/var/lib/config/pbs|Volume=${HOST_CONFIG_PATH}|" "$QUADLET_TMP"
+sed -i "s|Volume=/var/log/pbs|Volume=${HOST_LOGS_PATH}|" "$QUADLET_TMP"
 sed -i "s|Volume=/var/lib/data/pbs|Volume=${LOCAL_MOUNT_POINT}|" "$QUADLET_TMP"
 
-# Increase startup timeout
-sed -i "/^\t\[Service\]/ a TimeoutStartSec=300" "$QUADLET_TMP"
-
 if [[ "$USE_NFS" =~ ^[Yy]$ ]]; then
-    # Add dependency on NFS mount to Quadlet
-    if command -v systemd-escape >/dev/null; then
-        LOCAL_MOUNT_UNIT_NAME=$(systemd-escape --path --suffix=mount "$LOCAL_MOUNT_POINT")
-    else
-        LOCAL_MOUNT_UNIT_NAME=$(echo "${LOCAL_MOUNT_POINT#/}" | tr '/' '-').mount
-    fi
-    
+    LOCAL_MOUNT_UNIT_NAME=$(systemd-escape --path --suffix=mount "$LOCAL_MOUNT_POINT")
     sed -i "s/^After=.*/& $LOCAL_MOUNT_UNIT_NAME/" "$QUADLET_TMP"
-sed -i "/^\[Unit\]/ a Requires=$LOCAL_MOUNT_UNIT_NAME" "$QUADLET_TMP"
+    sed -i "/^\[Unit\]/ a Requires=$LOCAL_MOUNT_UNIT_NAME" "$QUADLET_TMP"
     
-    # Create Mount Unit
     MOUNT_UNIT_TMP=$(mktemp /tmp/pbs-mount.XXXXXX)
     cat <<EOF > "$MOUNT_UNIT_TMP"
 [Unit]
@@ -153,113 +155,68 @@ WantedBy=multi-user.target
 EOF
 fi
 
-# 2. Generate Remote Bash Script (Self-contained)
+# 2. Generate Remote Bash Script
 REMOTE_SETUP_SCRIPT_TMP=$(mktemp /tmp/pbs-remote-setup.XXXXXX)
-
-# Header with injected variables
 cat <<EOF > "$REMOTE_SETUP_SCRIPT_TMP"
 #!/bin/bash
 set -o errexit -o nounset -o pipefail
-USE_NFS="$USE_NFS"
+PBS_CONTAINER_NAME="$PBS_CONTAINER_NAME"
+HOST_CONFIG_PATH="$HOST_CONFIG_PATH"
+HOST_LOGS_PATH="$HOST_LOGS_PATH"
 LOCAL_MOUNT_POINT="$LOCAL_MOUNT_POINT"
 DATASTORE_NAME="$DATASTORE_NAME"
-EOF
-
-# Main Body (Quoted Heredoc - No Expansion)
-cat <<'EOF' >> "$REMOTE_SETUP_SCRIPT_TMP"
-
-echo '>> [Remote] Checking for NFS tools...'
-if [[ "$USE_NFS" =~ ^[Yy]$ ]]; then
-    if ! type -p mount.nfs >/dev/null; then
-        echo 'ERROR: mount.nfs not found. NFS utils seem missing.'
-        echo 'Please run: transactional-update pkg install nfs-utils && sync && sleep 5 && reboot'
-        exit 1
-    fi
-fi
+USE_NFS="$USE_NFS"
+PBS_PORT="$PBS_PORT"
 
 echo '>> [Remote] Creating directories...'
-mkdir -p /var/lib/config/pbs /var/log/pbs "$LOCAL_MOUNT_POINT"
+mkdir -p "\$HOST_CONFIG_PATH" "\$HOST_LOGS_PATH" "\$LOCAL_MOUNT_POINT"
 
-# Auto-configure datastore if missing and NFS is used
-if [[ "$USE_NFS" =~ ^[Yy]$ ]] && [ ! -f /var/lib/config/pbs/datastore.cfg ]; then
-    echo ">> [Remote] Initializing datastore.cfg with name: $DATASTORE_NAME..."
-    echo "datastore: $DATASTORE_NAME" > /var/lib/config/pbs/datastore.cfg
-    echo '    path /var/lib/proxmox-backup' >> /var/lib/config/pbs/datastore.cfg
-    chown 34:34 /var/lib/config/pbs/datastore.cfg
+if [[ "\$USE_NFS" =~ ^[Yy]$ ]] && [ ! -f "\$HOST_CONFIG_PATH/datastore.cfg" ]; then
+    echo ">> [Remote] Initializing datastore.cfg..."
+    echo "datastore: \$DATASTORE_NAME" > "\$HOST_CONFIG_PATH/datastore.cfg"
+    echo "    path /var/lib/proxmox-backup" >> "\$HOST_CONFIG_PATH/datastore.cfg"
+    chown 34:34 "\$HOST_CONFIG_PATH/datastore.cfg"
 fi
 
-echo '>> [Remote] Setting permissions (Config/Logs only)...'
-chown -R 34:34 /var/lib/config/pbs /var/log/pbs
+echo '>> [Remote] Setting permissions (34:34)...'
+chown -R 34:34 "\$HOST_CONFIG_PATH" "\$HOST_LOGS_PATH"
 
 echo '>> [Remote] Installing Quadlet...'
-# mv as root from /tmp to /etc results in root-owned file
-mv /tmp/proxmox-backup-server.container /etc/containers/systemd/
-chown root:root /etc/containers/systemd/proxmox-backup-server.container
+mv /tmp/pbs.container "/etc/containers/systemd/\$PBS_CONTAINER_NAME.container"
+chown root:root "/etc/containers/systemd/\$PBS_CONTAINER_NAME.container"
 
-if [[ "$USE_NFS" =~ ^[Yy]$ ]]; then
-    echo '>> [Remote] Installing NFS Mount Unit...'
-    
-    if command -v systemd-escape >/dev/null; then
-        R_MOUNT_UNIT_NAME=$(systemd-escape --path --suffix=mount "$LOCAL_MOUNT_POINT")
-    else
-        R_MOUNT_UNIT_NAME=$(echo "${LOCAL_MOUNT_POINT#/}" | tr '/' '-').mount
-    fi
-    
-    # Display cleaner name
-    DISPLAY_NAME=$(echo "$R_MOUNT_UNIT_NAME" | sed 's/\\x2d/-/g')
-    echo ">> [Remote] Mount Unit: $DISPLAY_NAME"
-    
-    mv /tmp/var-lib-data-pbs.mount "/etc/systemd/system/$R_MOUNT_UNIT_NAME"
-    
+if [[ "\$USE_NFS" =~ ^[Yy]$ ]]; then
+    R_MOUNT_UNIT_NAME=\$(systemd-escape --path --suffix=mount "\$LOCAL_MOUNT_POINT")
+    mv /tmp/pbs-mount.mount "/etc/systemd/system/\$R_MOUNT_UNIT_NAME"
     systemctl daemon-reload
-    systemctl enable --now "$R_MOUNT_UNIT_NAME"
+    systemctl enable --now "\$R_MOUNT_UNIT_NAME"
 fi
 
-echo '>> [Remote] Configuring Firewall (Port 8007)...'
-firewall-cmd --permanent --zone=public --add-port=8007/tcp
+echo ">> [Remote] Configuring Firewall (Port \$PBS_PORT)..."
+firewall-cmd --permanent --zone=public --add-port=\$PBS_PORT/tcp
 firewall-cmd --reload
 
-echo '>> [Remote] Reloading Systemd and Starting Service (This may take a while)...'
+echo '>> [Remote] Reloading and Restarting Service...'
 systemctl daemon-reload
-systemctl restart proxmox-backup-server || systemctl start proxmox-backup-server
+systemctl restart "\$PBS_CONTAINER_NAME" || systemctl start "\$PBS_CONTAINER_NAME"
 
 echo '>> [Remote] Waiting for service to become active...'
 attempt=0
-max_attempts=60
-while [ $attempt -lt $max_attempts ]; do
-    STATUS=$(systemctl is-active proxmox-backup-server)
-    if [ "$STATUS" == "active" ]; then
-        echo ">> Service started successfully!"
-        exit 0
-    elif [ "$STATUS" == "failed" ]; then
-        echo ">> Service failed to start."
-        systemctl status proxmox-backup-server --no-pager
-        exit 1
-    fi
-    echo ">> Status: $STATUS. Waiting..."
-    sleep 2
-    attempt=$((attempt+1))
+while [ \$attempt -lt 60 ]; do
+    STATUS=\$(systemctl is-active "\$PBS_CONTAINER_NAME")
+    [ "\$STATUS" == "active" ] && echo ">> Success!" && exit 0
+    [ "\$STATUS" == "failed" ] && systemctl status "\$PBS_CONTAINER_NAME" --no-pager && exit 1
+    sleep 2; attempt=\$((attempt+1))
 done
-
-echo ">> WARNING: Service is still starting or status is unknown ($STATUS)."
-exit 0
 EOF
 
-# 3. Upload Files
-echo ">> Uploading files to $REMOTE_HOST..."
-cat "$QUADLET_TMP" | $SSH_PIPE_CMD "$REMOTE_TARGET" "cat > /tmp/proxmox-backup-server.container"
+# 3. Upload and Execute
+echo ">> Uploading files..."
+cat "$QUADLET_TMP" | $SSH_PIPE_CMD "$REMOTE_TARGET" "cat > /tmp/pbs.container"
 cat "$REMOTE_SETUP_SCRIPT_TMP" | $SSH_PIPE_CMD "$REMOTE_TARGET" "cat > /tmp/pbs-setup.sh"
+[[ "$USE_NFS" =~ ^[Yy]$ ]] && cat "$MOUNT_UNIT_TMP" | $SSH_PIPE_CMD "$REMOTE_TARGET" "cat > /tmp/pbs-mount.mount"
 
-if [[ "$USE_NFS" =~ ^[Yy]$ ]]; then
-    cat "$MOUNT_UNIT_TMP" | $SSH_PIPE_CMD "$REMOTE_TARGET" "cat > /tmp/var-lib-data-pbs.mount"
-fi
-
-# 4. Execute Remote Setup
-echo ">> Executing setup script (You will be prompted for sudo password once)..."
 $SSH_CMD "$REMOTE_TARGET" "sudo bash /tmp/pbs-setup.sh && rm /tmp/pbs-setup.sh"
+rm -f "$QUADLET_TMP" "${MOUNT_UNIT_TMP:-}" "$REMOTE_SETUP_SCRIPT_TMP"
 
-# Cleanup local temps
-rm -f "$QUADLET_TMP" "$MOUNT_UNIT_TMP" "$REMOTE_SETUP_SCRIPT_TMP"
-
-echo ">> Setup complete. PBS should be reachable at https://$REMOTE_HOST:8007"
-echo ">> Default Login: admin@pbs / pbspbs"
+echo ">> Setup complete. Accessible at https://$REMOTE_HOST:$PBS_PORT"

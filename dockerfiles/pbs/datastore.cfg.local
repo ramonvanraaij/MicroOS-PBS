@@ -1,0 +1,2 @@
+datastore: test-datastore
+	path /var/lib/proxmox-backup

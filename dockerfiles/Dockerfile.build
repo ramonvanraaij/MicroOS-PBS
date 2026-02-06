@@ -1,5 +1,13 @@
 FROM debian:trixie-slim AS release_env
 
+LABEL org.opencontainers.image.title="Proxmox Backup Server (PBS) Container"
+LABEL org.opencontainers.image.description="A high-performance Proxmox Backup Server (PBS) container image. Specialized for OpenSUSE MicroOS (Quadlets), and fully compatible with Podman, Docker, and Docker Compose."
+LABEL org.opencontainers.image.authors="Rámon van Raaij (https://ramon.vanraaij.eu)"
+LABEL org.opencontainers.image.url="https://github.com/ramonvanraaij/MicroOS-PBS"
+LABEL org.opencontainers.image.source="https://github.com/ramonvanraaij/MicroOS-PBS"
+LABEL org.opencontainers.image.vendor="Rámon van Raaij"
+LABEL org.opencontainers.image.licenses="MIT"
+
 ARG DEBIAN_FRONTEND=noninteractive
 
 # 1. Setup Repos & Utils
@@ -18,6 +26,7 @@ RUN wget -qO - https://enterprise.proxmox.com/debian/proxmox-release-trixie.gpg 
 # Installing runit for supervision as per original architecture.
 RUN apt-get update && apt-get install -y \
     proxmox-backup-server \
+    proxmox-backup-client \
     runit \
     ssmtp \
     cron \

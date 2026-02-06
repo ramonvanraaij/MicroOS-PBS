@@ -1,0 +1,19 @@
+# Ignore ephemeral build artifacts
+build/
+release/
+tmp/
+node_modules/
+.env.mk
+
+# Ignore Mac metadata
+.DS_Store
+
+# Ignore editor configs
+.idea/
+.vscode/
+*.swp
+
+# Ignore local test artifacts
+datastore.cfg
+test-environment/
+*.md

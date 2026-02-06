@@ -4,7 +4,7 @@
 [![Auto-Build PBS Container](https://github.com/ramonvanraaij/microos-pbs/actions/workflows/pbs-auto-build.yml/badge.svg?style=flat-square)](https://github.com/ramonvanraaij/microos-pbs/actions/workflows/pbs-auto-build.yml)
 [![GitHub Container Registry](https://img.shields.io/badge/GHCR-latest-blue?logo=github&style=flat-square)](https://github.com/ramonvanraaij/microos-pbs/pkgs/container/proxmox-backup-server)
 
-This repository provides a specialized build system and deployment configuration for running **Proxmox Backup Server (PBS)** as a high-performance container on **OpenSUSE MicroOS** using **Podman Quadlets**.
+This repository provides a specialized build system and deployment configuration for running **Proxmox Backup Server (PBS)** as a high-performance container. While optimized for **OpenSUSE MicroOS** using **Podman Quadlets**, it is fully compatible with standard **Docker** and **Podman (Compose)** environments.
 
 ---
 
@@ -27,6 +27,8 @@ The build process is streamlined using pre-compiled packages from Proxmox Trixie
 
 *   **Target Hardware:** Lenovo ThinkCentre M92p Tiny (Intel i5-3470T (4) @ 3.60 GHz).
 *   **Estimated Build Time:** ~2-5 minutes (package-based).
+*   **Reference Build:** Lenovo Yoga Pro 9 16IMH9 (Intel Core Ultra 9 185H (22) @ 5.10 GHz).
+*   **Measured Build Time:** ~1 minute 40 seconds (clean build).
 
 ---
 
@@ -52,7 +54,7 @@ Deploy using the image automatically built and published by GitHub Actions:
 2.  **Follow the wizard:** The setup will guide you through networking and storage configuration.
 
 ### 🛠️ Option B: Build Directly on MicroOS Host (Control)
-If you prefer to compile the image directly on your target hardware:
+If you prefer to build the image directly on your target hardware:
 1.  **Run the build script:**
     ```bash
     ./build_on_microos.bash
@@ -62,6 +64,46 @@ If you prefer to compile the image directly on your target hardware:
     ```bash
     ./setup_microos.bash
     ```
+
+### 🛠️ Option C: Local Development & Testing (Podman/Docker)
+The local scripts and configuration are designed to work seamlessly with both **Podman** and **Docker**.
+
+#### 1. Automated Test Suite (Recommended)
+This script builds the image, sets up a private network, and performs a real backup verification using a separate client container:
+1.  **Build locally:** `./local_build.bash`
+2.  **Run multi-container test:** `./local_test.bash`
+3.  **Clean up:** `./local_cleanup.bash`
+
+#### 2. Local Execution via Docker Compose
+For a standard persistent local setup, use the provided `docker-compose.yml`:
+1.  **Start the server:**
+    ```bash
+    docker compose up -d
+    # or
+    podman-compose up -d
+    ```
+2.  **Access Web UI:** `https://localhost:8007` (admin@pbs / pbspbs)
+
+#### 3. Manual Local Execution
+```bash
+docker run -d \
+    --name pbs-local \
+    -p 8007:8007 \
+    --tmpfs /run \
+    -v $(pwd)/data/config:/etc/proxmox-backup \
+    -v $(pwd)/data/datastores:/var/lib/proxmox-backup \
+    ghcr.io/ramonvanraaij/proxmox-backup-server:latest
+```
+
+---
+
+## 🔄 CI/CD & Versioning Strategy
+
+The project uses a structured release flow to ensure stability:
+
+1.  **Release Candidate (RC):** Automated daily checks find upstream updates and create a pre-release tagged with `-RC` (e.g., `v4.1.2-1-RC`). These are published to GHCR but do not receive the `latest` tag.
+2.  **Promotion:** After testing the RC locally or on a test host, the release can be promoted to **Stable** via the GitHub Actions "Promote" manual trigger.
+3.  **Stable Release:** Promotion removes the `-RC` suffix, tags the image as `latest`, and creates a full GitHub Release.
 
 ---
 
@@ -73,9 +115,9 @@ If you prefer to compile the image directly on your target hardware:
 ### 📂 Storage Paths
 | Purpose | Host Path | Container Path |
 | :--- | :--- | :--- |
-| **Config** | `/var/lib/config/pbs` | `/etc/proxmox-backup` |
-| **Data** | *Configurable* (e.g., `/var/mnt/pbs_datastore`) | `/var/lib/proxmox-backup` |
-| **Logs** | `/var/log/pbs` | `/var/log/proxmox-backup` |
+| **Config** | *Configurable* (Default: `/var/lib/config/pbs`) | `/etc/proxmox-backup` |
+| **Data** | *Configurable* (Default: `/var/lib/data/pbs`) | `/var/lib/proxmox-backup` |
+| **Logs** | *Configurable* (Default: `/var/log/pbs`) | `/var/log/proxmox-backup` |
 
 ---
 

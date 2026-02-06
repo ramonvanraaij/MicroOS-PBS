@@ -1,0 +1,19 @@
+# docker-compose.yml
+# =================================================================
+# Local Deployment via Docker / Podman Compose
+# =================================================================
+services:
+  pbs:
+    image: ghcr.io/ramonvanraaij/proxmox-backup-server:latest
+    container_name: proxmox-backup-server
+    restart: unless-stopped
+    ports:
+      - "8007:8007"
+    volumes:
+      - ./data/config:/etc/proxmox-backup
+      - ./data/datastores:/var/lib/proxmox-backup
+      - ./data/logs:/var/log/proxmox-backup
+    tmpfs:
+      - /run
+    # For Podman users: ensure correct permissions if running rootless
+    # userns_mode: keep-id

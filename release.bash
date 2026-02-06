@@ -1,4 +1,19 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# release.bash
+# =================================================================
+# Internal Build Engine for Proxmox Backup Server Container
+#
+# Copyright (c) 2026 Rámon van Raaij
+# License: MIT
+# Author: Rámon van Raaij | Bluesky: @ramonvanraaij.nl | GitHub: https://github.com/ramonvanraaij | Website: https://ramon.vanraaij.eu
+# Repo: https://github.com/ramonvanraaij/microos-pbs
+#
+# This script provides the core container build logic used by both
+# local and remote build processes.
+#
+# Usage:
+# ./release.bash <tag> [build-image] [push-image] [deploy <remote>]
+# =================================================================
 
 if [[ $# -le 1 ]]; then
   echo "$0: usage <tag> [build-image] [push-image]"
@@ -11,7 +26,7 @@ cd "$SCRIPT_DIR/"
 IMAGE_TAG="$1"
 shift
 
-set -xeo pipefail
+set -o errexit -o nounset -o pipefail -o xtrace
 
 VERSION="${VERSION:-$(cat VERSION)}"
 ARCH="amd64" # Default to amd64 for MicroOS
@@ -46,7 +61,6 @@ container_build() {
   $DOCKER_CMD build \
     --build-arg=ARCH="$ARCH" \
     --build-arg=VERSION="$VERSION" \
-    --build-arg=TAG="$TAG" \
     --build-arg=IMAGE_PREFIX="$IMAGE_PREFIX" \
     --platform="$TARGET_PLATFORM" \
     "$@"

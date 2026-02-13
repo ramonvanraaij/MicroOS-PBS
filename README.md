@@ -1,8 +1,8 @@
 # 🛡️ MicroOS-PBS: Proxmox Backup Server on MicroOS
 
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/ramonvanraaij/microos-pbs?label=GitHub%20Release&style=flat-square)](https://github.com/ramonvanraaij/microos-pbs/releases)
-[![Auto-Build PBS Container](https://github.com/ramonvanraaij/microos-pbs/actions/workflows/pbs-auto-build.yml/badge.svg?style=flat-square)](https://github.com/ramonvanraaij/microos-pbs/actions/workflows/pbs-auto-build.yml)
-[![GitHub Container Registry](https://img.shields.io/badge/GHCR-latest-blue?logo=github&style=flat-square)](https://github.com/ramonvanraaij/microos-pbs/pkgs/container/proxmox-backup-server)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/ramonvanraaij/MicroOS-PBS?label=GitHub%20Release&style=flat-square)](https://github.com/ramonvanraaij/MicroOS-PBS/releases)
+[![Auto-Build PBS Container](https://github.com/ramonvanraaij/MicroOS-PBS/actions/workflows/pbs-auto-build.yml/badge.svg?style=flat-square)](https://github.com/ramonvanraaij/MicroOS-PBS/actions/workflows/pbs-auto-build.yml)
+[![GitHub Container Registry](https://img.shields.io/badge/GHCR-latest-blue?logo=github&style=flat-square)](https://github.com/ramonvanraaij/MicroOS-PBS/pkgs/container/proxmox-backup-server)
 
 This repository provides a specialized build system and deployment configuration for running **Proxmox Backup Server (PBS)** as a high-performance container. While optimized for **OpenSUSE MicroOS** using **Podman Quadlets**, it is fully compatible with standard **Docker** and **Podman (Compose)** environments.
 

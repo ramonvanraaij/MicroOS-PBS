@@ -20,6 +20,8 @@ AddCapability=SYS_RAWIO
 
 # Mount /run as tmpfs (Required by PBS for shared memory/locking)
 Tmpfs=/run
+# Ensure the required subdirectory exists in the /run tmpfs
+Tmpfs=/run/proxmox-backup:rw,size=64m,mode=1777
 
 [Service]
 Restart=always

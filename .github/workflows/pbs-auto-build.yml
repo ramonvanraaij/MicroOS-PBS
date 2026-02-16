@@ -1,14 +1,6 @@
 name: Build and Release PBS Container
 
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - 'README.md'
-      - 'LICENSE.md'
-      - 'VERSION'
-      - '.gitignore'
   schedule:
     - cron: '0 0 * * *' # Run every 24 hours
   workflow_dispatch:      # Allow manual run
@@ -20,7 +12,6 @@ on:
         type: choice
         options:
           - auto
-          - promote
           - force
 
 jobs:
@@ -41,44 +32,41 @@ jobs:
           # Priority: Input Mode > GitHub Event
           INPUT_MODE="${{ github.event.inputs.mode }}"
           EVENT_NAME="${{ github.event_name }}"
-          
-          if [ -n "$INPUT_MODE" ]; then
-            MODE="$INPUT_MODE"
-          elif [ "$EVENT_NAME" == "push" ]; then
-            MODE="force"
-          else
-            MODE="auto"
-          fi
+          BRANCH_NAME="${{ github.ref_name }}"
           
           CURRENT_VERSION=$(cat VERSION | sed 's/^v//')
           echo "Current Version: $CURRENT_VERSION"
-          echo "Detected Mode: $MODE"
+          echo "Branch Name: $BRANCH_NAME"
           
-          if [ "$MODE" == "promote" ]; then
-            if [[ "$CURRENT_VERSION" == *"-RC" ]]; then
-              NEW_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-RC//')
-              echo "mode=promote" >> $GITHUB_OUTPUT
-              echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-              echo "old_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-              echo "update_needed=true" >> $GITHUB_OUTPUT
-              echo "is_prerelease=false" >> $GITHUB_OUTPUT
-            else
-              echo "Error: Current version $CURRENT_VERSION is not an RC. Nothing to promote."
-              exit 1
-            fi
-          elif [ "$MODE" == "force" ]; then
-            # Build current version exactly as is
-            echo "mode=force" >> $GITHUB_OUTPUT
+          # 1. Manual Workflow Dispatch
+          if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
+            MODE="$INPUT_MODE"
+            echo "mode=$MODE" >> $GITHUB_OUTPUT
             echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
             echo "update_needed=true" >> $GITHUB_OUTPUT
-            # If current has -RC, it remains a pre-release
-            if [[ "$CURRENT_VERSION" == *"-RC" ]]; then
+            
+            if [[ "$BRANCH_NAME" == "develop" ]]; then
+              # Manual build on develop: version-dev-timestamp
+              DATE_SUFFIX=$(date +'%Y%m%d-%H%M')
+              DEV_VERSION="${CURRENT_VERSION}-dev-${DATE_SUFFIX}"
+              echo "version=$DEV_VERSION" >> $GITHUB_OUTPUT
               echo "is_prerelease=true" >> $GITHUB_OUTPUT
             else
+              # Manual build on main: stable release
               echo "is_prerelease=false" >> $GITHUB_OUTPUT
             fi
-          else
-            # Auto mode: Check upstream
+            exit 0
+          fi
+
+          # 2. Automated Schedule (Only on develop)
+          if [ "$EVENT_NAME" == "schedule" ]; then
+            if [ "$BRANCH_NAME" != "develop" ]; then
+              echo "Error: Automated checks only run on the develop branch."
+              echo "update_needed=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+
+            # Check upstream
             LATEST_UPSTREAM=$(curl -s "https://git.proxmox.com/?p=proxmox-backup.git;a=summary" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+-[0-9]+' | head -n 1)
             
             if [ -z "$LATEST_UPSTREAM" ]; then
@@ -86,8 +74,8 @@ jobs:
               exit 1
             fi
             
-            # Compare with base version (without -RC)
-            BASE_CURRENT=$(echo "$CURRENT_VERSION" | sed 's/-RC//')
+            # Compare with base version (without -RC/-dev)
+            BASE_CURRENT=$(echo "$CURRENT_VERSION" | sed -E 's/-(RC|dev.*)//')
             
             if [ "$BASE_CURRENT" != "$LATEST_UPSTREAM" ]; then
               echo "mode=auto" >> $GITHUB_OUTPUT
@@ -97,10 +85,11 @@ jobs:
             else
               echo "update_needed=false" >> $GITHUB_OUTPUT
             fi
+            exit 0
           fi
 
       - name: Update Repo Version
-        if: steps.target.outputs.update_needed == 'true'
+        if: steps.target.outputs.update_needed == 'true' && steps.target.outputs.mode != 'develop' && github.ref_name != 'develop'
         run: |
           echo "v${{ steps.target.outputs.version }}" > VERSION
           git config user.name "github-actions[bot]"
@@ -141,6 +130,8 @@ jobs:
           file: dockerfiles/Dockerfile.build
           target: release_env
           outputs: type=docker,dest=/tmp/image.tar
+          provenance: false
+          sbom: false
           build-args: |
             VERSION=${{ steps.target.outputs.version }}
           tags: |
@@ -169,26 +160,28 @@ jobs:
           file: dockerfiles/Dockerfile.build
           target: release_env
           push: true
+          provenance: false
+          sbom: false
           build-args: |
             VERSION=${{ steps.target.outputs.version }}
           labels: |
             org.opencontainers.image.title=Proxmox Backup Server (PBS) Container
-            org.opencontainers.image.description=A high-performance Proxmox Backup Server (PBS) container image. Specialized for OpenSUSE MicroOS (Quadlets), and fully compatible with Podman, Docker, and Docker Compose.
+            org.opencontainers.image.description=A high-performance PBS container image for MicroOS (Quadlets), Docker, and Podman. See README for local execution details.
             org.opencontainers.image.source=https://github.com/ramonvanraaij/MicroOS-PBS
             org.opencontainers.image.url=https://github.com/ramonvanraaij/MicroOS-PBS
             org.opencontainers.image.authors=Rámon van Raaij (https://ramon.vanraaij.eu)
             org.opencontainers.image.vendor=Rámon van Raaij
             org.opencontainers.image.licenses=MIT
           annotations: |
-            index:org.opencontainers.image.title=Proxmox Backup Server (PBS) Container
-            index:org.opencontainers.image.description=A high-performance Proxmox Backup Server (PBS) container image. Specialized for OpenSUSE MicroOS (Quadlets), and fully compatible with Podman, Docker, and Docker Compose.
-            index:org.opencontainers.image.source=https://github.com/ramonvanraaij/MicroOS-PBS
-            index:org.opencontainers.image.url=https://github.com/ramonvanraaij/MicroOS-PBS
-            index:org.opencontainers.image.authors=Rámon van Raaij (https://ramon.vanraaij.eu)
-            index:org.opencontainers.image.vendor=Rámon van Raaij
-            index:org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.title=Proxmox Backup Server (PBS) Container
+            org.opencontainers.image.description=A high-performance PBS container image for MicroOS (Quadlets), Docker, and Podman. See README for local execution details.
+            org.opencontainers.image.source=https://github.com/ramonvanraaij/MicroOS-PBS
+            org.opencontainers.image.url=https://github.com/ramonvanraaij/MicroOS-PBS
+            org.opencontainers.image.authors=Rámon van Raaij (https://ramon.vanraaij.eu)
+            org.opencontainers.image.vendor=Rámon van Raaij
+            org.opencontainers.image.licenses=MIT
             manifest:org.opencontainers.image.title=Proxmox Backup Server (PBS) Container
-            manifest:org.opencontainers.image.description=A high-performance Proxmox Backup Server (PBS) container image. Specialized for OpenSUSE MicroOS (Quadlets), and fully compatible with Podman, Docker, and Docker Compose.
+            manifest:org.opencontainers.image.description=A high-performance PBS container image for MicroOS (Quadlets), Docker, and Podman. See README for local execution details.
             manifest:org.opencontainers.image.source=https://github.com/ramonvanraaij/MicroOS-PBS
             manifest:org.opencontainers.image.url=https://github.com/ramonvanraaij/MicroOS-PBS
             manifest:org.opencontainers.image.authors=Rámon van Raaij (https://ramon.vanraaij.eu)
@@ -196,9 +189,10 @@ jobs:
             manifest:org.opencontainers.image.licenses=MIT
           tags: |
             ${{ steps.target.outputs.is_prerelease == 'false' && format('ghcr.io/{0}/proxmox-backup-server:latest', github.repository_owner) || '' }}
+            ${{ github.ref_name == 'develop' && format('ghcr.io/{0}/proxmox-backup-server:develop', github.repository_owner) || '' }}
             ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:${{ steps.target.outputs.version }}
 
-      - name: Create GitHub Release
+      - name: Create or Update GitHub Release
         if: steps.target.outputs.update_needed == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -209,31 +203,65 @@ jobs:
           fi
           
           PACKAGE_URL="https://github.com/${{ github.repository }}/pkgs/container/proxmox-backup-server"
+          TAG="v${{ steps.target.outputs.version }}"
           
-          gh release create "v${{ steps.target.outputs.version }}" \
-            $PRERELEASE_FLAG \
-            --title "PBS Container v${{ steps.target.outputs.version }} for MicroOS" \
-            --notes "Release of **MicroOS Container Image** for Proxmox Backup Server v${{ steps.target.outputs.version }}.
+          read -r -d '' NOTES <<EOF || true
+          Release of **MicroOS Container Image** for Proxmox Backup Server v${{ steps.target.outputs.version }}.
 
-            **Container Image:** [${{ steps.target.outputs.version }}]($PACKAGE_URL)
+          **Container Image:** [${{ steps.target.outputs.version }}]($PACKAGE_URL)
 
-            **Key Features:**
-            - **Podman Quadlet Integration:** Native systemd service generation.
-            - **NFS Support:** Interactive setup for external datastores.
-            - **Optimized for MicroOS:** Immutable OS ready.
-            
-            $( [ "${{ steps.target.outputs.mode }}" == "promote" ] && echo "This is a stable release promoted from v${{ steps.target.outputs.old_version }}." )
-            $( [ "${{ steps.target.outputs.mode }}" == "force" ] && echo "This is a forced build of the current version with updated metadata/configuration." )
-            $( [ "${{ steps.target.outputs.mode }}" == "auto" ] && echo "This is a Release Candidate build for testing." )"
+          **Key Features:**
+          - **Podman Quadlet Integration:** Native systemd service generation.
+          - **NFS Support:** Interactive setup for external datastores.
+          - **Optimized for MicroOS:** Immutable OS ready.
+          
+          **Manual Local Execution:**
+          \`\`\`bash
+          docker run -d \\
+              --name pbs-local \\
+              -p 8007:8007 \\
+              --tmpfs /run \\
+              -v \$(pwd)/data/config:/etc/proxmox-backup \\
+              -v \$(pwd)/data/datastores:/var/lib/proxmox-backup \\
+              ghcr.io/ramonvanraaij/proxmox-backup-server:latest
+          \`\`\`
+          
+          $([ "${{ steps.target.outputs.mode }}" == "force" ] && [ "${{ github.ref_name }}" == "main" ] && echo "This is a forced build of the current version with updated metadata/configuration.")
+          $([ "${{ steps.target.outputs.mode }}" == "auto" ] && echo "This is an automated Release Candidate build for testing.")
+          $([ "${{ github.ref_name }}" == "develop" ] && [ "${{ steps.target.outputs.mode }}" != "auto" ] && echo "This is a development build for testing fixes from the **develop** branch.")
+          EOF
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists. Updating notes..."
+            gh release edit "$TAG" --notes "$NOTES" $PRERELEASE_FLAG
+          else
+            echo "Creating new release $TAG..."
+            gh release create "$TAG" \
+              $PRERELEASE_FLAG \
+              --title "PBS Container ${{ steps.target.outputs.version }} for MicroOS" \
+              --notes "$NOTES"
+          fi
 
       - name: Cleanup Old RC Release
-        if: steps.target.outputs.mode == 'promote'
+        if: github.ref_name == 'main'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          OLD_TAG="v${{ steps.target.outputs.old_version }}"
-          echo "Checking for old RC release: $OLD_TAG"
-          if gh release view "$OLD_TAG" >/dev/null 2>&1; then
-            echo "Deleting old RC release and tag: $OLD_TAG"
-            gh release delete "$OLD_TAG" --yes --cleanup-tag
+          # Cleanup any RC tags that match the current version when finalizing on main
+          CURRENT_BASE=$(cat VERSION | sed 's/^v//')
+          RC_TAG="v${CURRENT_BASE}-RC"
+          
+          if gh release view "$RC_TAG" >/dev/null 2>&1; then
+            echo "Finalizing release on main. Deleting matched RC: $RC_TAG"
+            gh release delete "$RC_TAG" --yes --cleanup-tag
           fi
+
+      - name: Cleanup Old Development Builds
+        if: github.ref_name == 'develop'
+        uses: snok/container-retention-policy@v2
+        with:
+          image: proxmox-backup-server
+          account: ramonvanraaij
+          token: ${{ secrets.GITHUB_TOKEN }}
+          include-tags-filter: '.*-dev-.*'
+          keep-n-most-recent: 1

@@ -97,13 +97,13 @@ docker run -d \
 
 ---
 
-## 🔄 CI/CD & Versioning Strategy
+## 🔄 Branch Strategy & Release Flow
 
 The project uses a structured release flow to ensure stability:
 
-1.  **Release Candidate (RC):** Automated daily checks find upstream updates and create a pre-release tagged with `-RC` (e.g., `v4.1.2-1-RC`). These are published to GHCR but do not receive the `latest` tag.
-2.  **Promotion:** After testing the RC locally or on a test host, the release can be promoted to **Stable** via the GitHub Actions "Promote" manual trigger.
-3.  **Stable Release:** Promotion removes the `-RC` suffix, tags the image as `latest`, and creates a full GitHub Release.
+1.  **Develop Branch (`develop`):** Daily automated checks monitor upstream Proxmox releases. If a new version is detected, a **Release Candidate (`-RC`)** is automatically created and published from this branch.
+2.  **Testing & Verification:** Changes are tested on the `develop` branch. Manual builds on `develop` generate unique date-versioned images for isolated verification.
+3.  **Main Branch (`main`):** Once verified, `develop` is merged into `main` (squashed). Running a manual "Force" build on `main` finalizes the **Stable** release and tags it as `latest`.
 
 ---
 

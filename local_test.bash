@@ -101,7 +101,7 @@ $DOCKER_CMD exec -u root "$CONTAINER_NAME" chown -R backup:backup /var/lib/proxm
 echo ">> Retrieving Server Fingerprint..."
 FINGERPRINT=""
 attempt=0
-while [ -z "$FINGERPRINT" ] && [ $attempt -lt 10 ]; do
+while [ -z "$FINGERPRINT" ] && [ $attempt -lt 150 ]; do
     FINGERPRINT=$($DOCKER_CMD exec "$CONTAINER_NAME" proxmox-backup-manager cert info 2>/dev/null | grep Fingerprint | awk '{print $NF}' || echo "")
     [ -z "$FINGERPRINT" ] && sleep 2
     attempt=$((attempt+1))

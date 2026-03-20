@@ -16,21 +16,21 @@ set -o errexit -o nounset -o pipefail
 
 # --- Interactive Configuration ---
 echo "--- MicroOS Host Configuration ---"
-read -p "MicroOS Host (IP or hostname): " REMOTE_HOST
+read -r -p "MicroOS Host (IP or hostname): " REMOTE_HOST
 if [[ -z "$REMOTE_HOST" ]]; then echo "Remote host required"; exit 1; fi
 
-read -p "MicroOS SSH Port [22]: " REMOTE_PORT
+read -r -p "MicroOS SSH Port [22]: " REMOTE_PORT
 REMOTE_PORT=${REMOTE_PORT:-22}
 
-read -p "MicroOS SSH Username: " REMOTE_USER
+read -r -p "MicroOS SSH Username: " REMOTE_USER
 if [[ -z "$REMOTE_USER" ]]; then echo "Remote user required"; exit 1; fi
 
-read -p "Use a Jumphost? [y/N]: " USE_JUMP
+read -r -p "Use a Jumphost? [y/N]: " USE_JUMP
 if [[ "$USE_JUMP" =~ ^[Yy]$ ]]; then
-    read -p "Jumphost IP: " JUMP_HOST
-    read -p "Jumphost Port [22]: " JUMP_PORT
+    read -r -p "Jumphost IP: " JUMP_HOST
+    read -r -p "Jumphost Port [22]: " JUMP_PORT
     JUMP_PORT=${JUMP_PORT:-22}
-    read -p "Jumphost Username: " JUMP_USER
+    read -r -p "Jumphost Username: " JUMP_USER
     
     JUMP_STR="${JUMP_USER}@${JUMP_HOST}:${JUMP_PORT}"
     SSH_OPTS="-p ${REMOTE_PORT} -o ProxyJump=${JUMP_STR}"
@@ -45,16 +45,16 @@ SSH_PIPE_CMD="ssh ${SSH_OPTS}"
 # --- Instance Configuration ---
 echo ""
 echo "--- Instance Configuration ---"
-read -p "Container Name [proxmox-backup-server]: " PBS_CONTAINER_NAME
+read -r -p "Container Name [proxmox-backup-server]: " PBS_CONTAINER_NAME
 PBS_CONTAINER_NAME=${PBS_CONTAINER_NAME:-proxmox-backup-server}
 
-read -p "Container Port [8007]: " PBS_PORT
+read -r -p "Container Port [8007]: " PBS_PORT
 PBS_PORT=${PBS_PORT:-8007}
 
-read -p "Host Config Path [/var/lib/config/pbs]: " HOST_CONFIG_PATH
+read -r -p "Host Config Path [/var/lib/config/pbs]: " HOST_CONFIG_PATH
 HOST_CONFIG_PATH=${HOST_CONFIG_PATH:-/var/lib/config/pbs}
 
-read -p "Host Logs Path [/var/log/pbs]: " HOST_LOGS_PATH
+read -r -p "Host Logs Path [/var/log/pbs]: " HOST_LOGS_PATH
 HOST_LOGS_PATH=${HOST_LOGS_PATH:-/var/log/pbs}
 
 # --- Image Configuration ---
@@ -62,7 +62,7 @@ echo ""
 echo "--- Container Image ---"
 echo "1) Local (localhost/proxmox-backup-server:latest)"
 echo "2) GHCR (ghcr.io/ramonvanraaij/proxmox-backup-server:latest)"
-read -p "Select image source [1]: " IMAGE_CHOICE
+read -r -p "Select image source [1]: " IMAGE_CHOICE
 case "$IMAGE_CHOICE" in
     2) PBS_IMAGE="ghcr.io/ramonvanraaij/proxmox-backup-server:latest" ;;
     *) PBS_IMAGE="localhost/proxmox-backup-server:latest" ;;
@@ -71,13 +71,13 @@ esac
 # --- Network Configuration ---
 echo ""
 echo "--- Podman Network ---"
-read -p "Podman Network [host]: " PODMAN_NETWORK
+read -r -p "Podman Network [host]: " PODMAN_NETWORK
 PODMAN_NETWORK=${PODMAN_NETWORK:-host}
 
 if [[ "$PODMAN_NETWORK" == "host" && "$PBS_PORT" != "8007" ]]; then
     echo "WARNING: Port mapping ($PBS_PORT:8007) is NOT supported in 'host' network mode."
     echo "The service will still listen on port 8007 on the host."
-    read -p "Switch to 'bridge' network instead? [Y/n]: " SWITCH_NET
+    read -r -p "Switch to 'bridge' network instead? [Y/n]: " SWITCH_NET
     if [[ ! "$SWITCH_NET" =~ ^[Nn]$ ]]; then
         PODMAN_NETWORK="bridge"
         echo ">> Switched to bridge network."
@@ -86,20 +86,20 @@ fi
 
 # --- PBS Hostname ---
 echo ""
-read -p "PBS Hostname [MicroOS-PBS]: " PBS_HOSTNAME
+read -r -p "PBS Hostname [MicroOS-PBS]: " PBS_HOSTNAME
 PBS_HOSTNAME=${PBS_HOSTNAME:-MicroOS-PBS}
 
 # --- NFS Configuration ---
 echo ""
 echo "--- NFS Datastore Configuration ---"
-read -p "Use NFS for the PBS Datastore? [y/N]: " USE_NFS
+read -r -p "Use NFS for the PBS Datastore? [y/N]: " USE_NFS
 if [[ "$USE_NFS" =~ ^[Yy]$ ]]; then
-    read -p "NFS Server IP: " NFS_IP
-    read -p "NFS Export Path (e.g. /volume1/backups): " NFS_PATH
-    read -p "Local Mount Point [/var/mnt/pbs_datastore]: " LOCAL_MOUNT_POINT
+    read -r -p "NFS Server IP: " NFS_IP
+    read -r -p "NFS Export Path (e.g. /volume1/backups): " NFS_PATH
+    read -r -p "Local Mount Point [/var/mnt/pbs_datastore]: " LOCAL_MOUNT_POINT
     LOCAL_MOUNT_POINT=${LOCAL_MOUNT_POINT:-/var/mnt/pbs_datastore}
     
-    read -p "Datastore Name [default]: " DATASTORE_NAME
+    read -r -p "Datastore Name [default]: " DATASTORE_NAME
     DATASTORE_NAME=${DATASTORE_NAME:-default}
 else
     LOCAL_MOUNT_POINT="/var/lib/data/pbs"

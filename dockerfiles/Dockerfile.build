@@ -1,5 +1,7 @@
 FROM debian:trixie-slim AS release_env
 
+ARG VERSION=unknown
+LABEL org.opencontainers.image.version="${VERSION}"
 LABEL org.opencontainers.image.title="Proxmox Backup Server (PBS) Container"
 LABEL org.opencontainers.image.description="A high-performance Proxmox Backup Server (PBS) container image. Specialized for OpenSUSE MicroOS (Quadlets), and fully compatible with Podman, Docker, and Docker Compose."
 LABEL org.opencontainers.image.authors="Rámon van Raaij (https://ramon.vanraaij.eu)"

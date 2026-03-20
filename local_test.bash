@@ -6,7 +6,7 @@
 # Copyright (c) 2026 Rámon van Raaij
 # License: MIT
 # Author: Rámon van Raaij | Bluesky: @ramonvanraaij.nl | GitHub: https://github.com/ramonvanraaij | Website: https://ramon.vanraaij.eu
-# Repo: https://github.com/ramonvanraaij/microos-pbs
+# Repo: https://github.com/ramonvanraaij/MicroOS-PBS
 #
 # This script deploys a self-contained PBS test environment using 
 # a dedicated Podman network and a separate Debian client to 
@@ -32,7 +32,7 @@ fi
 
 # Allow overriding the image name via environment variable for CI
 IMAGE_NAME="${TEST_IMAGE_NAME:-proxmox-backup-server-local}"
-VERSION=$(cat VERSION | sed 's/^v//')
+VERSION=$(sed 's/^v//' VERSION)
 # Handle case where VERSION might already be the full tag
 if [[ "$IMAGE_NAME" == *":"* ]]; then
     FULL_IMAGE="$IMAGE_NAME"

@@ -16,4 +16,3 @@ node_modules/
 # Ignore local test artifacts
 datastore.cfg
 test-environment/
-*.md

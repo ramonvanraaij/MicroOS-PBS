@@ -22,7 +22,7 @@ jobs:
       packages: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -34,7 +34,7 @@ jobs:
           EVENT_NAME="${{ github.event_name }}"
           BRANCH_NAME="${{ github.ref_name }}"
           
-          CURRENT_VERSION=$(cat VERSION | sed 's/^v//')
+          CURRENT_VERSION=$(sed 's/^v//' VERSION)
           echo "Current Version: $CURRENT_VERSION"
           echo "Branch Name: $BRANCH_NAME"
           
@@ -89,7 +89,7 @@ jobs:
           fi
 
       - name: Update Repo Version
-        if: steps.target.outputs.update_needed == 'true' && steps.target.outputs.mode != 'develop' && github.ref_name != 'develop'
+        if: steps.target.outputs.update_needed == 'true' && github.ref_name != 'develop'
         run: |
           echo "v${{ steps.target.outputs.version }}" > VERSION
           git config user.name "github-actions[bot]"
@@ -104,7 +104,7 @@ jobs:
 
       - name: Login to GHCR
         if: steps.target.outputs.update_needed == 'true'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -116,15 +116,15 @@ jobs:
 
       - name: Set up QEMU
         if: steps.target.outputs.update_needed == 'true'
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
         if: steps.target.outputs.update_needed == 'true'
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build Local Image for Testing
         if: steps.target.outputs.update_needed == 'true'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: dockerfiles/Dockerfile.build
@@ -154,7 +154,7 @@ jobs:
 
       - name: Push to GHCR
         if: steps.target.outputs.update_needed == 'true'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: dockerfiles/Dockerfile.build
@@ -248,7 +248,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Cleanup any RC tags that match the current version when finalizing on main
-          CURRENT_BASE=$(cat VERSION | sed 's/^v//')
+          CURRENT_BASE=$(sed 's/^v//' VERSION)
           RC_TAG="v${CURRENT_BASE}-RC"
           
           if gh release view "$RC_TAG" >/dev/null 2>&1; then
@@ -258,10 +258,10 @@ jobs:
 
       - name: Cleanup Old Development Builds
         if: github.ref_name == 'develop'
-        uses: snok/container-retention-policy@v2
+        uses: snok/container-retention-policy@v3
         with:
-          image: proxmox-backup-server
+          image-names: proxmox-backup-server
           account: ramonvanraaij
           token: ${{ secrets.GITHUB_TOKEN }}
-          include-tags-filter: '.*-dev-.*'
+          image-tags: '*-dev-*'
           keep-n-most-recent: 1

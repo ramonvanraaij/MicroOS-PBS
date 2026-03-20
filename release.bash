@@ -6,7 +6,7 @@
 # Copyright (c) 2026 Rámon van Raaij
 # License: MIT
 # Author: Rámon van Raaij | Bluesky: @ramonvanraaij.nl | GitHub: https://github.com/ramonvanraaij | Website: https://ramon.vanraaij.eu
-# Repo: https://github.com/ramonvanraaij/microos-pbs
+# Repo: https://github.com/ramonvanraaij/MicroOS-PBS
 #
 # This script provides the core container build logic used by both
 # local and remote build processes.
@@ -29,26 +29,13 @@ shift
 set -o errexit -o nounset -o pipefail -o xtrace
 
 VERSION="${VERSION:-$(cat VERSION)}"
-ARCH="amd64" # Default to amd64 for MicroOS
 
+# Detect platform based on host architecture
 if [[ "$(uname -m)" == "aarch64" ]]; then
-  ARCH="arm64"
+  TARGET_PLATFORM="linux/arm64/v8"
+else
+  TARGET_PLATFORM="linux/amd64"
 fi
-
-case "$ARCH" in
-  arm64)
-    IMAGE_PREFIX="arm64v8/"
-    TARGET_PLATFORM="linux/arm64/v8"
-    ;;
-  amd64)
-    IMAGE_PREFIX=""
-    TARGET_PLATFORM="linux/amd64"
-    ;;
-  *)
-    echo "Unsupported architecture: $ARCH"
-    exit 1
-    ;;
-esac
 
 RELEASE_IMAGE_TAG="$IMAGE_TAG"
 
@@ -59,9 +46,7 @@ fi
 
 container_build() {
   $DOCKER_CMD build \
-    --build-arg=ARCH="$ARCH" \
     --build-arg=VERSION="$VERSION" \
-    --build-arg=IMAGE_PREFIX="$IMAGE_PREFIX" \
     --platform="$TARGET_PLATFORM" \
     "$@"
 }

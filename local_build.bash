@@ -6,7 +6,7 @@
 # Copyright (c) 2026 Rámon van Raaij
 # License: MIT
 # Author: Rámon van Raaij | Bluesky: @ramonvanraaij.nl | GitHub: https://github.com/ramonvanraaij | Website: https://ramon.vanraaij.eu
-# Repo: https://github.com/ramonvanraaij/microos-pbs
+# Repo: https://github.com/ramonvanraaij/MicroOS-PBS
 #
 # This script builds the PBS container image locally using Podman
 # or Docker, mimicking the GitHub Actions build environment.
@@ -27,7 +27,7 @@ if command -v podman &> /dev/null; then
 fi
 
 IMAGE_NAME="proxmox-backup-server-local"
-VERSION=$(cat VERSION | sed 's/^v//')
+VERSION=$(sed 's/^v//' VERSION)
 
 echo ">> Using $DOCKER_CMD to build $IMAGE_NAME:$VERSION"
 

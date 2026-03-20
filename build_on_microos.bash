@@ -6,7 +6,7 @@
 # Copyright (c) 2026 Rámon van Raaij
 # License: MIT
 # Author: Rámon van Raaij | Bluesky: @ramonvanraaij.nl | GitHub: https://github.com/ramonvanraaij | Website: https://ramon.vanraaij.eu
-# Repo: https://github.com/ramonvanraaij/microos-pbs
+# Repo: https://github.com/ramonvanraaij/MicroOS-PBS
 #
 # This script packs the current repository and performs a remote 
 # build using Podman on an OpenSUSE MicroOS host.
@@ -24,21 +24,21 @@ set -o errexit -o nounset -o pipefail
 
 # --- Interactive Configuration ---
 echo "--- MicroOS Connection Details ---"
-read -p "MicroOS Host (IP or hostname): " REMOTE_HOST
+read -r -p "MicroOS Host (IP or hostname): " REMOTE_HOST
 if [[ -z "$REMOTE_HOST" ]]; then echo "Remote host required"; exit 1; fi
 
-read -p "MicroOS SSH Port [22]: " REMOTE_PORT
+read -r -p "MicroOS SSH Port [22]: " REMOTE_PORT
 REMOTE_PORT=${REMOTE_PORT:-22}
 
-read -p "MicroOS SSH Username: " REMOTE_USER
+read -r -p "MicroOS SSH Username: " REMOTE_USER
 if [[ -z "$REMOTE_USER" ]]; then echo "Remote user required"; exit 1; fi
 
-read -p "Use a Jumphost? [y/N]: " USE_JUMP
+read -r -p "Use a Jumphost? [y/N]: " USE_JUMP
 if [[ "$USE_JUMP" =~ ^[Yy]$ ]]; then
-    read -p "Jumphost IP: " JUMP_HOST
-    read -p "Jumphost Port [22]: " JUMP_PORT
+    read -r -p "Jumphost IP: " JUMP_HOST
+    read -r -p "Jumphost Port [22]: " JUMP_PORT
     JUMP_PORT=${JUMP_PORT:-22}
-    read -p "Jumphost Username: " JUMP_USER
+    read -r -p "Jumphost Username: " JUMP_USER
     
     JUMP_STR="${JUMP_USER}@${JUMP_HOST}:${JUMP_PORT}"
     SSH_OPTS="-o ServerAliveInterval=60 -p ${REMOTE_PORT} -o ProxyJump=${JUMP_STR}"
@@ -62,8 +62,8 @@ tar -czf "$TAR_FILE" --exclude='./.git' --exclude='./build' --exclude='./node_mo
 
 # 2. Upload
 echo ">> Uploading source code to $REMOTE_HOST..."
-ssh ${SSH_OPTS} "$REMOTE_TARGET" "mkdir -p $BUILD_DIR"
-cat "$TAR_FILE" | ssh ${SSH_OPTS} "$REMOTE_TARGET" "cat > $BUILD_DIR/source.tar.gz"
+ssh ${SSH_OPTS} "$REMOTE_TARGET" "mkdir -p '$BUILD_DIR'"
+cat "$TAR_FILE" | ssh ${SSH_OPTS} "$REMOTE_TARGET" "cat > '$BUILD_DIR/source.tar.gz'"
 
 # 3. Remote Build Execution
 echo ">> Executing Remote Build (You will be prompted for sudo password)..."

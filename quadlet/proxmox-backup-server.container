@@ -6,6 +6,7 @@ After=network-online.target local-fs.target
 Image=localhost/proxmox-backup-server:latest
 PodmanArgs=--hostname=MicroOS-PBS
 Network=host
+# PublishPort only takes effect with Network=bridge; ignored in host mode
 PublishPort=8007:8007
 
 # Persistence

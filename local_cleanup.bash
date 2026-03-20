@@ -6,7 +6,7 @@
 # Copyright (c) 2026 Rámon van Raaij
 # License: MIT
 # Author: Rámon van Raaij | Bluesky: @ramonvanraaij.nl | GitHub: https://github.com/ramonvanraaij | Website: https://ramon.vanraaij.eu
-# Repo: https://github.com/ramonvanraaij/microos-pbs
+# Repo: https://github.com/ramonvanraaij/MicroOS-PBS
 #
 # This script stops and removes the test containers, the dedicated
 # test network, and the local test data directories.
@@ -36,8 +36,10 @@ TEST_DIR="$SCRIPT_DIR/test-environment"
 IMAGE_NAME="proxmox-backup-server-local"
 
 echo ">> Stopping and removing containers..."
-$DOCKER_CMD stop "$CONTAINER_NAME" "$CLIENT_NAME" >/dev/null 2>&1
-$DOCKER_CMD rm "$CONTAINER_NAME" "$CLIENT_NAME" >/dev/null 2>&1
+$DOCKER_CMD stop "$CONTAINER_NAME" >/dev/null 2>&1 || true
+$DOCKER_CMD stop "$CLIENT_NAME" >/dev/null 2>&1 || true
+$DOCKER_CMD rm "$CONTAINER_NAME" >/dev/null 2>&1 || true
+$DOCKER_CMD rm "$CLIENT_NAME" >/dev/null 2>&1 || true
 
 echo ">> Removing network $NETWORK_NAME..."
 $DOCKER_CMD network rm "$NETWORK_NAME" >/dev/null 2>&1
@@ -48,7 +50,7 @@ if [ -d "$TEST_DIR" ]; then
     rm -rf "$TEST_DIR" || sudo rm -rf "$TEST_DIR"
 fi
 
-read -p ">> Do you also want to remove the local images? [y/N]: " REMOVE_IMAGES
+read -r -p ">> Do you also want to remove the local images? [y/N]: " REMOVE_IMAGES
 if [[ "$REMOVE_IMAGES" =~ ^[Yy]$ ]]; then
     echo ">> Removing local images..."
     $DOCKER_CMD rmi "$IMAGE_NAME:latest" >/dev/null 2>&1 || true

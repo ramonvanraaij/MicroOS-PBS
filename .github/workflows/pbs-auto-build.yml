@@ -60,7 +60,9 @@ jobs:
           
           UPDATE_REPO_VERSION="false"
           BUILD_IMAGE="false"
+          PROMOTE_IMAGE="false"
           TARGET_VERSION="$CURRENT_VERSION"
+          SOURCE_VERSION="$CURRENT_VERSION"
           IS_PRERELEASE="true"
           
           check_upstream() {
@@ -104,7 +106,10 @@ jobs:
               IS_PRERELEASE="false"
               if [ "$CURRENT_VERSION" != "$TARGET_VERSION" ]; then
                 UPDATE_REPO_VERSION="true"
-                echo "Promoting to stable release: $TARGET_VERSION"
+                BUILD_IMAGE="false"
+                PROMOTE_IMAGE="true"
+                SOURCE_VERSION="$CURRENT_VERSION"
+                echo "Promoting to stable release: $TARGET_VERSION from $SOURCE_VERSION"
               fi
             fi
           fi
@@ -138,7 +143,9 @@ jobs:
           fi
           
           echo "version=$TARGET_VERSION" >> $GITHUB_OUTPUT
+          echo "source_version=$SOURCE_VERSION" >> $GITHUB_OUTPUT
           echo "update_needed=$BUILD_IMAGE" >> $GITHUB_OUTPUT
+          echo "promote_image=$PROMOTE_IMAGE" >> $GITHUB_OUTPUT
           echo "update_repo_version=$UPDATE_REPO_VERSION" >> $GITHUB_OUTPUT
           echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
 
@@ -157,7 +164,7 @@ jobs:
           fi
 
       - name: Login to GHCR
-        if: steps.target.outputs.update_needed == 'true'
+        if: steps.target.outputs.update_needed == 'true' || steps.target.outputs.promote_image == 'true'
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -235,8 +242,17 @@ jobs:
             ${{ steps.branch.outputs.name == 'develop' && format('ghcr.io/{0}/proxmox-backup-server:develop', github.repository_owner) || '' }}
             ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:${{ steps.target.outputs.version }}
 
+      - name: Promote RC Image to Stable
+        if: steps.target.outputs.promote_image == 'true'
+        run: |
+          docker pull ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:${{ steps.target.outputs.source_version }}
+          docker tag ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:${{ steps.target.outputs.source_version }} ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:${{ steps.target.outputs.version }}
+          docker tag ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:${{ steps.target.outputs.source_version }} ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:latest
+          docker push ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:${{ steps.target.outputs.version }}
+          docker push ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:latest
+
       - name: Create or Update GitHub Release
-        if: steps.target.outputs.update_needed == 'true'
+        if: steps.target.outputs.update_needed == 'true' || steps.target.outputs.promote_image == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

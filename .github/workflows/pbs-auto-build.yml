@@ -13,6 +13,11 @@ on:
         options:
           - auto
           - force
+      check-upstream:
+        description: 'Check for latest upstream version'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   check-and-deploy:
@@ -45,6 +50,7 @@ jobs:
         run: |
           # Priority: Input Mode > GitHub Event
           INPUT_MODE="${{ github.event.inputs.mode }}"
+          CHECK_UPSTREAM="${{ github.event.inputs.check-upstream }}"
           EVENT_NAME="${{ github.event_name }}"
           BRANCH_NAME="${{ steps.branch.outputs.name }}"
           
@@ -52,36 +58,66 @@ jobs:
           echo "Current Version: $CURRENT_VERSION"
           echo "Branch Name: $BRANCH_NAME"
           
+          UPDATE_REPO_VERSION="false"
+          BUILD_IMAGE="false"
+          TARGET_VERSION="$CURRENT_VERSION"
+          IS_PRERELEASE="true"
+          
+          check_upstream() {
+            curl -s "https://git.proxmox.com/?p=proxmox-backup.git;a=tags" | grep -oP 'refs/tags/v\K[0-9]+\.[0-9]+\.[0-9]+' | head -n 1
+          }
+
           # 1. Manual Workflow Dispatch
           if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
             MODE="$INPUT_MODE"
             echo "mode=$MODE" >> $GITHUB_OUTPUT
-            echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-            echo "update_needed=true" >> $GITHUB_OUTPUT
+            BUILD_IMAGE="true"
             
             if [[ "$BRANCH_NAME" == "develop" ]]; then
-              # Manual build on develop: version-dev-timestamp
-              DATE_SUFFIX=$(date +'%Y%m%d-%H%M')
-              DEV_VERSION="${CURRENT_VERSION}-dev-${DATE_SUFFIX}"
-              echo "version=$DEV_VERSION" >> $GITHUB_OUTPUT
-              echo "is_prerelease=true" >> $GITHUB_OUTPUT
+              if [ "$CHECK_UPSTREAM" == "true" ]; then
+                echo "Checking latest upstream version..."
+                LATEST_UPSTREAM=$(check_upstream)
+                if [ -z "$LATEST_UPSTREAM" ]; then
+                  echo "Error: Could not extract version number from upstream."
+                  exit 1
+                fi
+                echo "Latest Upstream: $LATEST_UPSTREAM"
+                
+                BASE_CURRENT=$(echo "$CURRENT_VERSION" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')
+                if [ "$BASE_CURRENT" != "$LATEST_UPSTREAM" ]; then
+                  TARGET_VERSION="${LATEST_UPSTREAM}-RC"
+                  UPDATE_REPO_VERSION="true"
+                  echo "New version detected: $TARGET_VERSION"
+                else
+                  echo "Upstream matches current base version. Building dev version instead."
+                  DATE_SUFFIX=$(date +'%Y%m%d-%H%M')
+                  TARGET_VERSION="${CURRENT_VERSION}-dev-${DATE_SUFFIX}"
+                fi
+              else
+                # Manual build on develop (no upstream check): version-dev-timestamp
+                DATE_SUFFIX=$(date +'%Y%m%d-%H%M')
+                TARGET_VERSION="${CURRENT_VERSION}-dev-${DATE_SUFFIX}"
+              fi
             else
               # Manual build on main: stable release
-              echo "is_prerelease=false" >> $GITHUB_OUTPUT
+              TARGET_VERSION=$(echo "$CURRENT_VERSION" | sed -E 's/-RC$//')
+              IS_PRERELEASE="false"
+              if [ "$CURRENT_VERSION" != "$TARGET_VERSION" ]; then
+                UPDATE_REPO_VERSION="true"
+                echo "Promoting to stable release: $TARGET_VERSION"
+              fi
             fi
-            exit 0
           fi
 
           # 2. Automated Schedule (Only on develop)
           if [ "$EVENT_NAME" == "schedule" ]; then
             if [ "$BRANCH_NAME" != "develop" ]; then
               echo "Error: Automated checks only run on the develop branch."
-              echo "update_needed=false" >> $GITHUB_OUTPUT
               exit 0
             fi
 
-            # Check upstream version from git tags page
-            LATEST_UPSTREAM=$(curl -s "https://git.proxmox.com/?p=proxmox-backup.git;a=tags" | grep -oP 'refs/tags/v\K[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)
+            echo "Checking latest upstream version..."
+            LATEST_UPSTREAM=$(check_upstream)
 
             if [ -z "$LATEST_UPSTREAM" ]; then
               echo "Error: Could not extract version number from upstream."
@@ -95,24 +131,26 @@ jobs:
             
             if [ "$BASE_CURRENT" != "$LATEST_UPSTREAM" ]; then
               echo "mode=auto" >> $GITHUB_OUTPUT
-              echo "version=${LATEST_UPSTREAM}-RC" >> $GITHUB_OUTPUT
-              echo "update_needed=true" >> $GITHUB_OUTPUT
-              echo "is_prerelease=true" >> $GITHUB_OUTPUT
-            else
-              echo "update_needed=false" >> $GITHUB_OUTPUT
+              TARGET_VERSION="${LATEST_UPSTREAM}-RC"
+              BUILD_IMAGE="true"
+              UPDATE_REPO_VERSION="true"
             fi
-            exit 0
           fi
+          
+          echo "version=$TARGET_VERSION" >> $GITHUB_OUTPUT
+          echo "update_needed=$BUILD_IMAGE" >> $GITHUB_OUTPUT
+          echo "update_repo_version=$UPDATE_REPO_VERSION" >> $GITHUB_OUTPUT
+          echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
 
       - name: Update Repo Version
-        if: steps.target.outputs.update_needed == 'true' && steps.branch.outputs.name != 'develop'
+        if: steps.target.outputs.update_repo_version == 'true'
         run: |
           echo "v${{ steps.target.outputs.version }}" > VERSION
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add VERSION
           if ! git diff --cached --quiet; then
-            git commit -m "chore: Update version to ${{ steps.target.outputs.version }} (${{ steps.target.outputs.mode }})"
+            git commit -m "chore: Update version to ${{ steps.target.outputs.version }}"
             git push
           else
             echo "No version change to commit."

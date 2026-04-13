@@ -288,10 +288,11 @@ jobs:
 
       - name: Cleanup Old Development Builds
         if: steps.branch.outputs.name == 'develop'
-        uses: snok/container-retention-policy@v3
+        uses: snok/container-retention-policy@v3.0.1
         with:
           image-names: proxmox-backup-server
-          account: ramonvanraaij
+          account: user
           token: ${{ secrets.GITHUB_TOKEN }}
           image-tags: '*-dev-*'
+          cut-off: 1d
           keep-n-most-recent: 1

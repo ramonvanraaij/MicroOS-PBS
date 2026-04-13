@@ -98,11 +98,12 @@ if [[ "$USE_NFS" =~ ^[Yy]$ ]]; then
     read -r -p "NFS Export Path (e.g. /volume1/backups): " NFS_PATH
     read -r -p "Local Mount Point [/var/mnt/pbs_datastore]: " LOCAL_MOUNT_POINT
     LOCAL_MOUNT_POINT=${LOCAL_MOUNT_POINT:-/var/mnt/pbs_datastore}
-    
+
     read -r -p "Datastore Name [default]: " DATASTORE_NAME
     DATASTORE_NAME=${DATASTORE_NAME:-default}
 else
-    LOCAL_MOUNT_POINT="/var/lib/data/pbs"
+    read -r -p "Host Data Path [/var/lib/data/pbs]: " LOCAL_MOUNT_POINT
+    LOCAL_MOUNT_POINT=${LOCAL_MOUNT_POINT:-/var/lib/data/pbs}
     DATASTORE_NAME=""
 fi
 
@@ -124,7 +125,6 @@ QUADLET_TMP=$(mktemp /tmp/pbs-quadlet.XXXXXX)
 cp quadlet/proxmox-backup-server.container "$QUADLET_TMP"
 
 # Update Quadlet
-sed -i "s/^ContainerName=.*/ContainerName=$PBS_CONTAINER_NAME/" "$QUADLET_TMP"
 sed -i "s|^Image=.*|Image=$PBS_IMAGE|" "$QUADLET_TMP"
 sed -i "s/^Network=.*/Network=$PODMAN_NETWORK/" "$QUADLET_TMP"
 sed -i "s/^PodmanArgs=--hostname=.*/PodmanArgs=--hostname=$PBS_HOSTNAME/" "$QUADLET_TMP"
@@ -208,6 +208,8 @@ while [ \$attempt -lt 60 ]; do
     [ "\$STATUS" == "failed" ] && systemctl status "\$PBS_CONTAINER_NAME" --no-pager && exit 1
     sleep 2; attempt=\$((attempt+1))
 done
+echo ">> Error: Service did not become active within 120 seconds."
+exit 1
 EOF
 
 # 3. Upload and Execute

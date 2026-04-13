@@ -106,10 +106,18 @@ echo ">> Logs will be written to $LOG_FILE"
 # Start detached screen session, logging to file
 screen -dmS pbs-build bash -c "$BUILD_CMD > $LOG_FILE 2>&1"
 
-echo ">> Build started in background."
-echo ">> Tailing log file (Ctrl+C to stop watching, build will continue)..."
+echo ">> Build started in background. Waiting for completion..."
 sleep 2
-tail -f $LOG_FILE
+
+# Follow the log until the screen session exits
+while screen -list | grep -q pbs-build; do
+    tail -n 5 $LOG_FILE 2>/dev/null
+    sleep 5
+done
+
+echo ""
+echo ">> Build finished. Last 20 lines of log:"
+tail -n 20 $LOG_FILE
 '
 
 # Pass the script securely - Run with SUDO for System Quadlet compatibility

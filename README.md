@@ -124,9 +124,9 @@ The project uses a structured release flow to ensure stability:
 ## 🔄 CI/CD Pipeline
 
 The project includes a robust GitHub Actions workflow (`.github/workflows/pbs-auto-build.yml`) that:
-1.  **Monitors Upstream:** Checks `git://git.proxmox.com` daily for new PBS releases.
-2.  **Auto-Updates:** Syncs the `VERSION` file in the repository.
-3.  **Distributes:** Builds and pushes new images to GHCR at `ghcr.io/ramonvanraaij/proxmox-backup-server`.
+1.  **Monitors Upstream:** Checks `git.proxmox.com` daily for new PBS release tags.
+2.  **Auto-Builds:** Creates Release Candidate (`-RC`) images on the `develop` branch when a new version is detected.
+3.  **Distributes:** Builds, tests, and pushes images to GHCR at `ghcr.io/ramonvanraaij/proxmox-backup-server`.
 
 ---
 

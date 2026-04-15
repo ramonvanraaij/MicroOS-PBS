@@ -65,8 +65,11 @@ jobs:
           SOURCE_VERSION="$CURRENT_VERSION"
           IS_PRERELEASE="true"
           
+          # Use external script so scheduled runs (which load the workflow
+          # from main) still execute the latest detection logic checked out
+          # from develop.
           check_upstream() {
-            curl -s "https://git.proxmox.com/?p=proxmox-backup.git;a=tags" | grep -oP 'refs/tags/v\K[0-9]+\.[0-9]+\.[0-9]+' | head -n 1
+            bash scripts/check_upstream.bash
           }
 
           # 1. Manual Workflow Dispatch
@@ -85,13 +88,14 @@ jobs:
                 fi
                 echo "Latest Upstream: $LATEST_UPSTREAM"
                 
-                BASE_CURRENT=$(echo "$CURRENT_VERSION" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')
+                # Strip -RC/-dev suffixes for comparison, keep revision (X.Y.Z-N)
+                BASE_CURRENT=$(echo "$CURRENT_VERSION" | sed -E 's/-(RC|dev-.*)$//')
                 if [ "$BASE_CURRENT" != "$LATEST_UPSTREAM" ]; then
                   TARGET_VERSION="${LATEST_UPSTREAM}-RC"
                   UPDATE_REPO_VERSION="true"
                   echo "New version detected: $TARGET_VERSION"
                 else
-                  echo "Upstream matches current base version. Building dev version instead."
+                  echo "Upstream matches current version. Building dev version instead."
                   DATE_SUFFIX=$(date +'%Y%m%d-%H%M')
                   TARGET_VERSION="${CURRENT_VERSION}-dev-${DATE_SUFFIX}"
                 fi
@@ -131,9 +135,9 @@ jobs:
 
             echo "Latest Upstream: $LATEST_UPSTREAM"
 
-            # Strip to base X.Y.Z for comparison (remove any -N revision, -RC, -dev suffixes)
-            BASE_CURRENT=$(echo "$CURRENT_VERSION" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')
-            
+            # Strip -RC/-dev suffixes for comparison, keep revision (X.Y.Z-N)
+            BASE_CURRENT=$(echo "$CURRENT_VERSION" | sed -E 's/-(RC|dev-.*)$//')
+
             if [ "$BASE_CURRENT" != "$LATEST_UPSTREAM" ]; then
               echo "mode=auto" >> $GITHUB_OUTPUT
               TARGET_VERSION="${LATEST_UPSTREAM}-RC"
@@ -170,6 +174,13 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to Docker Hub
+        if: steps.target.outputs.promote_image == 'true'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Lowercase Repository Name
         id: repo
@@ -245,11 +256,18 @@ jobs:
       - name: Promote RC Image to Stable
         if: steps.target.outputs.promote_image == 'true'
         run: |
+          # GHCR
           docker pull ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:${{ steps.target.outputs.source_version }}
           docker tag ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:${{ steps.target.outputs.source_version }} ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:${{ steps.target.outputs.version }}
           docker tag ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:${{ steps.target.outputs.source_version }} ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:latest
           docker push ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:${{ steps.target.outputs.version }}
           docker push ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:latest
+          
+          # Docker Hub
+          docker tag ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:${{ steps.target.outputs.source_version }} docker.io/${{ secrets.DOCKERHUB_USERNAME }}/proxmox-backup-server:${{ steps.target.outputs.version }}
+          docker tag ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:${{ steps.target.outputs.source_version }} docker.io/${{ secrets.DOCKERHUB_USERNAME }}/proxmox-backup-server:latest
+          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/proxmox-backup-server:${{ steps.target.outputs.version }}
+          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/proxmox-backup-server:latest
 
       - name: Create or Update GitHub Release
         if: steps.target.outputs.update_needed == 'true' || steps.target.outputs.promote_image == 'true'
@@ -280,7 +298,7 @@ jobs:
 
           NOTES_FILE=$(mktemp)
           {
-            echo "## Proxmox Backup Server ${VERSION}"
+            echo "## Proxmox Backup Server ${VERSION} for MicroOS"
             echo ""
             [ -n "$BUILD_NOTE" ] && echo "$BUILD_NOTE" && echo ""
             echo "### Container Image"
@@ -291,8 +309,18 @@ jobs:
             [ "$BRANCH" == "main" ] && echo "| \`latest\` | \`ghcr.io/ramonvanraaij/proxmox-backup-server:latest\` |"
             [ "$BRANCH" == "develop" ] && echo "| \`develop\` | \`ghcr.io/ramonvanraaij/proxmox-backup-server:develop\` |"
             echo ""
-            echo "### Quick Start"
+            echo "### 🚀 Deployment Options"
             echo ""
+            echo "#### Option A: OpenSUSE MicroOS (Quadlets)"
+            echo "Clone the repository and run the interactive setup script for a fully automated, systemd-managed deployment:"
+            echo '```bash'
+            echo "git clone https://github.com/ramonvanraaij/MicroOS-PBS.git"
+            echo "cd MicroOS-PBS"
+            echo "chmod +x setup_microos.bash"
+            echo "./setup_microos.bash"
+            echo '```'
+            echo ""
+            echo "#### Option B: Podman / Docker (Manual)"
             echo '```bash'
             echo "docker pull ghcr.io/ramonvanraaij/proxmox-backup-server:${VERSION}"
             echo ""
@@ -307,9 +335,14 @@ jobs:
             echo ""
             echo "Web UI: \`https://localhost:8007\` — Default login: \`admin@pbs\` / \`pbspbs\`"
             echo ""
+            echo "### 🛠️ Advanced Usage"
+            echo ""
+            echo "For local building, testing, and debugging, please refer to the [Setup & Documentation](https://github.com/${{ github.repository }}#readme) for details on the included \`local_build.bash\` and \`local_test.bash\` scripts."
+            echo ""
             echo "### Links"
             echo ""
-            echo "- [Container Registry](${PACKAGE_URL})"
+            echo "- [GitHub Container Registry](${PACKAGE_URL})"
+            echo "- [Docker Hub Registry](https://hub.docker.com/r/${{ secrets.DOCKERHUB_USERNAME }}/proxmox-backup-server)"
             echo "- [Upstream Changelog](https://git.proxmox.com/?p=proxmox-backup.git;a=shortlog;h=refs/tags/v${BASE_VERSION})"
             echo "- [Setup & Documentation](https://github.com/${{ github.repository }}#readme)"
           } > "$NOTES_FILE"
@@ -321,7 +354,7 @@ jobs:
             echo "Creating new release $TAG..."
             gh release create "$TAG" \
               $PRERELEASE_FLAG \
-              --title "Proxmox Backup Server ${VERSION}" \
+              --title "Proxmox Backup Server ${VERSION} for MicroOS" \
               --notes-file "$NOTES_FILE"
           fi
           rm -f "$NOTES_FILE"

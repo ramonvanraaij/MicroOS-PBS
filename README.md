@@ -2,7 +2,8 @@
 
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/ramonvanraaij/MicroOS-PBS?label=GitHub%20Release&style=flat-square)](https://github.com/ramonvanraaij/MicroOS-PBS/releases)
 [![Auto-Build PBS Container](https://github.com/ramonvanraaij/MicroOS-PBS/actions/workflows/pbs-auto-build.yml/badge.svg?style=flat-square)](https://github.com/ramonvanraaij/MicroOS-PBS/actions/workflows/pbs-auto-build.yml)
-[![GitHub Container Registry](https://img.shields.io/badge/GHCR-latest-blue?logo=github&style=flat-square)](https://github.com/ramonvanraaij/MicroOS-PBS/pkgs/container/proxmox-backup-server)
+[![GitHub Container Registry](https://img.shields.io/github/v/release/ramonvanraaij/MicroOS-PBS?logo=github&style=flat-square&label=GHCR)](https://github.com/ramonvanraaij/MicroOS-PBS/pkgs/container/proxmox-backup-server)
+[![Docker Hub](https://img.shields.io/docker/v/ramonvanraaij/proxmox-backup-server?sort=date&logo=docker&style=flat-square&label=Docker%20Hub)](https://hub.docker.com/r/ramonvanraaij/proxmox-backup-server)
 
 This repository provides a specialized build system and deployment configuration for running **Proxmox Backup Server (PBS)** as a high-performance container. While optimized for **OpenSUSE MicroOS** using **Podman Quadlets**, it is fully compatible with standard **Docker** and **Podman (Compose)** environments.
 
@@ -124,9 +125,9 @@ The project uses a structured release flow to ensure stability:
 ## 🔄 CI/CD Pipeline
 
 The project includes a robust GitHub Actions workflow (`.github/workflows/pbs-auto-build.yml`) that:
-1.  **Monitors Upstream:** Checks `git.proxmox.com` daily for new PBS release tags.
+1.  **Monitors Upstream:** Checks the Proxmox APT repository daily for new PBS package versions.
 2.  **Auto-Builds:** Creates Release Candidate (`-RC`) images on the `develop` branch when a new version is detected.
-3.  **Distributes:** Builds, tests, and pushes images to GHCR at `ghcr.io/ramonvanraaij/proxmox-backup-server`.
+3.  **Distributes:** Builds, tests, and pushes images to [GHCR](https://github.com/ramonvanraaij/MicroOS-PBS/pkgs/container/proxmox-backup-server) and [Docker Hub](https://hub.docker.com/r/ramonvanraaij/proxmox-backup-server).
 
 ---
 

@@ -114,6 +114,12 @@ jobs:
                 PROMOTE_IMAGE="true"
                 SOURCE_VERSION="$CURRENT_VERSION"
                 echo "Promoting to stable release: $TARGET_VERSION from $SOURCE_VERSION"
+              else
+                # VERSION already stable: nothing to promote and no rebuild
+                # implied. Skip to avoid silently overwriting the existing
+                # digest behind the :latest tag.
+                BUILD_IMAGE="false"
+                echo "Version $CURRENT_VERSION is already stable. Nothing to do."
               fi
             fi
           fi

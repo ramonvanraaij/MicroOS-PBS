@@ -1,9 +1,5 @@
 # Ignore ephemeral build artifacts
 build/
-release/
-tmp/
-node_modules/
-.env.mk
 
 # Ignore Mac metadata
 .DS_Store

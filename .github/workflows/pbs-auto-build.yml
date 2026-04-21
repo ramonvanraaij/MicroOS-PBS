@@ -284,23 +284,38 @@ jobs:
           BASE_VERSION=$(echo "$VERSION" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')
           TAG="v${VERSION}"
           BRANCH="${{ steps.branch.outputs.name }}"
-          MODE="${{ steps.target.outputs.mode }}"
-
-          # Determine build type note
+          # Determine build type note from concrete workflow state
+          # (promote_image flag + version suffix) rather than MODE, which
+          # does not reliably distinguish promotion vs. RC build.
           BUILD_NOTE=""
-          if [ "$MODE" == "auto" ]; then
-            BUILD_NOTE="> **Release Candidate** — automated build triggered by upstream version detection. Pending verification before stable release."
-          elif [ "$MODE" == "force" ] && [ "$BRANCH" == "main" ]; then
+          if [ "${{ steps.target.outputs.promote_image }}" == "true" ]; then
             BUILD_NOTE="> **Stable Release** — manually verified and promoted from the develop branch."
-          elif [ "$BRANCH" == "develop" ]; then
+          elif [[ "$VERSION" == *-RC ]]; then
+            BUILD_NOTE="> **Release Candidate** — automated build triggered by upstream version detection. Pending verification before stable release."
+          elif [[ "$VERSION" == *-dev-* ]]; then
             BUILD_NOTE="> **Development Build** — testing build from the develop branch."
+          fi
+
+          # Build a changelog of commit subjects since the previous release.
+          # Log against origin/develop so stable promotions show real commits
+          # instead of the squash-merge line on main.
+          PREV_TAG=$(gh release list --limit 20 --json tagName --jq '[.[] | select(.tagName != "v'"$VERSION"'")][0].tagName' 2>/dev/null || true)
+          CHANGES=""
+          if [ -n "$PREV_TAG" ]; then
+            CHANGES=$(git log "${PREV_TAG}..origin/develop" --pretty=format:"- %s" 2>/dev/null \
+              | grep -vE "^- chore: Update version to|^- chore\(release\): merge develop into main|^- Merge " \
+              || true)
           fi
 
           NOTES_FILE=$(mktemp)
           {
-            echo "## Proxmox Backup Server ${VERSION} for MicroOS"
-            echo ""
             [ -n "$BUILD_NOTE" ] && echo "$BUILD_NOTE" && echo ""
+            if [ -n "$CHANGES" ]; then
+              echo "### Changes"
+              echo ""
+              printf '%s\n' "$CHANGES"
+              echo ""
+            fi
             echo "### Container Image"
             echo ""
             echo "| Tag | Image |"
@@ -372,6 +387,17 @@ jobs:
             echo "Finalizing release on main. Deleting matched RC: $RC_TAG"
             gh release delete "$RC_TAG" --yes --cleanup-tag
           fi
+
+      - name: Cleanup RC Container Image
+        if: steps.target.outputs.promote_image == 'true'
+        uses: snok/container-retention-policy@v3.0.1
+        with:
+          image-names: proxmox-backup-server
+          account: user
+          token: ${{ secrets.GITHUB_TOKEN }}
+          image-tags: '*-RC'
+          cut-off: 1s
+          keep-n-most-recent: 0
 
       - name: Cleanup Old Development Builds
         if: steps.branch.outputs.name == 'develop'

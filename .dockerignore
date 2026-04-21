@@ -1,5 +1,9 @@
-tmp/
-build/
-release/
-dockerfiles/Dockerfile*
-.env.mk
+.git/
+.github/
+*.md
+LICENSE.md
+docker-compose.yml
+*.bash
+VERSION
+scripts/
+quadlet/

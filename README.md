@@ -104,7 +104,7 @@ The project uses a structured release flow to ensure stability:
 
 1.  **Develop Branch (`develop`):** Daily automated checks monitor upstream Proxmox releases. If a new version is detected, a **Release Candidate (`-RC`)** is automatically created and published from this branch.
 2.  **Testing & Verification:** Changes are tested on the `develop` branch. Manual builds on `develop` generate unique date-versioned images for isolated verification.
-3.  **Main Branch (`main`):** Once verified, `develop` is merged into `main` (squashed). Running a manual "Force" build on `main` finalizes the **Stable** release and tags it as `latest`.
+3.  **Main Branch (`main`):** Once verified, `develop` is merged into `main` (squashed). Running the workflow manually on `main` finalizes the **Stable** release, tags it as `latest`, and publishes it to Docker Hub.
 
 ---
 
@@ -127,7 +127,7 @@ The project uses a structured release flow to ensure stability:
 The project includes a robust GitHub Actions workflow (`.github/workflows/pbs-auto-build.yml`) that:
 1.  **Monitors Upstream:** Checks the Proxmox APT repository daily for new PBS package versions.
 2.  **Auto-Builds:** Creates Release Candidate (`-RC`) images on the `develop` branch when a new version is detected.
-3.  **Distributes:** Builds, tests, and pushes images to [GHCR](https://github.com/ramonvanraaij/MicroOS-PBS/pkgs/container/proxmox-backup-server) and [Docker Hub](https://hub.docker.com/r/ramonvanraaij/proxmox-backup-server).
+3.  **Distributes:** Builds, tests, and pushes images to [GHCR](https://github.com/ramonvanraaij/MicroOS-PBS/pkgs/container/proxmox-backup-server). Stable releases are also published to [Docker Hub](https://hub.docker.com/r/ramonvanraaij/proxmox-backup-server).
 
 ---
 

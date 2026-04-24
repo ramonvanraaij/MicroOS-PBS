@@ -51,25 +51,31 @@ container_build() {
     "$@"
 }
 
-for i; do
-  case "$i" in
+# Process actions sequentially. A while-loop consumes the positional
+# parameters directly so `deploy` can claim the next argument as its
+# remote host without leaving it behind for the default case.
+while [[ $# -gt 0 ]]; do
+  case "$1" in
     build-image)
       container_build --file=dockerfiles/Dockerfile.build --target="release_env" --tag="$RELEASE_IMAGE_TAG" "."
+      shift
       ;;
 
     push-image)
       $DOCKER_CMD push "$RELEASE_IMAGE_TAG"
+      shift
       ;;
-      
+
     deploy)
       # Helper to save and copy to remote
       # usage: ./release.bash <tag> deploy <remote_host>
       # This requires the image to be built first
       shift
-      REMOTE="$1"
+      REMOTE="${1:-}"
       if [[ -z "$REMOTE" ]]; then echo "Remote host required for deploy"; exit 1; fi
       echo ">> Deploying to $REMOTE..."
       $DOCKER_CMD save "$RELEASE_IMAGE_TAG" | ssh "$REMOTE" "$DOCKER_CMD load"
+      shift
       ;;
 
     *)

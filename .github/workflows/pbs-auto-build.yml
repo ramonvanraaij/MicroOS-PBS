@@ -393,7 +393,7 @@ jobs:
           image-names: proxmox-backup-server
           account: user
           token: ${{ secrets.GITHUB_TOKEN }}
-          image-tags: '*-RC'
+          image-tags: '*-RC,develop'
           cut-off: 1s
           keep-n-most-recent: 0
 

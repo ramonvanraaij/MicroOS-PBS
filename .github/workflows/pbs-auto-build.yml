@@ -341,7 +341,13 @@ jobs:
           # Build a changelog of commit subjects since the previous release.
           # Log against origin/develop so stable promotions show real commits
           # instead of the squash-merge line on main.
-          PREV_TAG=$(gh release list --limit 20 --json tagName --jq '[.[] | select(.tagName != "v'"$VERSION"'")][0].tagName' 2>/dev/null || true)
+          # Anchor PREV_TAG to a tag whose commit is reachable from
+          # origin/develop. Stable tags live on main's squash commits and
+          # have no shared ancestry with develop, so --merged origin/develop
+          # excludes them naturally and picks the latest develop-side tag
+          # (the previous RC or dev build).
+          PREV_TAG=$(git tag --merged origin/develop --sort=-creatordate \
+            | grep -v "^v${VERSION}\$" | head -n 1)
           CHANGES=""
           if [ -n "$PREV_TAG" ]; then
             CHANGES=$(git log "${PREV_TAG}..origin/develop" --pretty=format:"- %s" 2>/dev/null \
@@ -408,9 +414,15 @@ jobs:
             echo "Release $TAG exists. Updating notes..."
             gh release edit "$TAG" --notes-file "$NOTES_FILE" $PRERELEASE_FLAG
           else
-            echo "Creating new release $TAG..."
+            # Pin the tag to the current commit (the bot's version-bump
+            # commit on the running branch). Without --target, gh defaults
+            # to the default branch's HEAD, which placed RC tags on main
+            # instead of develop and broke changelog anchoring.
+            TARGET_SHA=$(git rev-parse HEAD)
+            echo "Creating new release $TAG at $TARGET_SHA..."
             gh release create "$TAG" \
               $PRERELEASE_FLAG \
+              --target "$TARGET_SHA" \
               --title "Proxmox Backup Server ${VERSION} for MicroOS" \
               --notes-file "$NOTES_FILE"
           fi
@@ -426,8 +438,14 @@ jobs:
           RC_TAG="v${CURRENT_BASE}-RC"
           
           if gh release view "$RC_TAG" >/dev/null 2>&1; then
+            # Delete the GitHub Release entry but keep the underlying git
+            # tag. The tag is needed as a changelog anchor for the next RC
+            # build on develop (the next PREV_TAG selection is `git tag
+            # --merged origin/develop`). Without it, the next RC's notes
+            # would fall back to a much older tag and re-list commits that
+            # were already shipped in this stable.
             echo "Finalizing release on main. Deleting matched RC: $RC_TAG"
-            gh release delete "$RC_TAG" --yes --cleanup-tag
+            gh release delete "$RC_TAG" --yes
           fi
 
       - name: Cleanup Old Development Builds

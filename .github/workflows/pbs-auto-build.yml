@@ -253,19 +253,63 @@ jobs:
 
       - name: Promote RC Image to Stable
         if: steps.target.outputs.promote_image == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          SOURCE: ${{ steps.target.outputs.source_version }}
+          TARGET: ${{ steps.target.outputs.version }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
-          # GHCR
-          docker pull ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:${{ steps.target.outputs.source_version }}
-          docker tag ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:${{ steps.target.outputs.source_version }} ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:${{ steps.target.outputs.version }}
-          docker tag ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:${{ steps.target.outputs.source_version }} ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:latest
-          docker push ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:${{ steps.target.outputs.version }}
-          docker push ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:latest
-          
-          # Docker Hub
-          docker tag ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:${{ steps.target.outputs.source_version }} docker.io/${{ secrets.DOCKERHUB_USERNAME }}/proxmox-backup-server:${{ steps.target.outputs.version }}
-          docker tag ghcr.io/${{ github.repository_owner }}/proxmox-backup-server:${{ steps.target.outputs.source_version }} docker.io/${{ secrets.DOCKERHUB_USERNAME }}/proxmox-backup-server:latest
-          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/proxmox-backup-server:${{ steps.target.outputs.version }}
-          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/proxmox-backup-server:latest
+          set -euo pipefail
+          GHCR_REPO="ghcr.io/${OWNER}/proxmox-backup-server"
+
+          # 1. Pull the RC image and verify before any destructive action.
+          # Bail out before the API delete if the pull fails for any reason.
+          docker pull "${GHCR_REPO}:${SOURCE}"
+
+          # 2. Find the RC package version id. Requires the RC image to
+          # currently carry the source version tag. Pass SOURCE to jq via
+          # --arg so the filter is not vulnerable to quoting issues if the
+          # version string ever contains jq-significant characters.
+          MATCHES=$(gh api \
+            "/users/${OWNER}/packages/container/proxmox-backup-server/versions" \
+            | jq -r --arg src "$SOURCE" \
+                '.[] | select(.metadata.container.tags | contains([$src])) | "\(.id)\t\(.metadata.container.tags | join(","))"')
+          MATCH_COUNT=$(printf '%s\n' "$MATCHES" | grep -c . || true)
+          if [ "$MATCH_COUNT" -eq 0 ]; then
+            echo "Error: no GHCR package version found with tag ${SOURCE}"
+            exit 1
+          fi
+          if [ "$MATCH_COUNT" -gt 1 ]; then
+            echo "Error: expected one GHCR package version with tag ${SOURCE}, found $MATCH_COUNT:"
+            printf '%s\n' "$MATCHES"
+            exit 1
+          fi
+          RC_VERSION_ID=$(printf '%s' "$MATCHES" | cut -f1)
+          RC_TAGS=$(printf '%s' "$MATCHES" | cut -f2)
+          echo "Deleting RC package version $RC_VERSION_ID (tags: ${RC_TAGS})"
+
+          # 3. Delete the RC version. Removes all tags on this digest (the
+          # ${SOURCE} tag plus any others such as `develop`). GHCR allows
+          # immediate re-push of the same digest right after deletion
+          # (verified empirically).
+          gh api --method DELETE \
+            "/users/${OWNER}/packages/container/proxmox-backup-server/versions/${RC_VERSION_ID}"
+
+          # 4. Re-push the locally cached image as stable + latest. This
+          # creates a fresh package version whose only tags are the stable
+          # ones, so the Versions UI stays clean.
+          docker tag "${GHCR_REPO}:${SOURCE}" "${GHCR_REPO}:${TARGET}"
+          docker tag "${GHCR_REPO}:${SOURCE}" "${GHCR_REPO}:latest"
+          docker push "${GHCR_REPO}:${TARGET}"
+          docker push "${GHCR_REPO}:latest"
+
+          # 5. Docker Hub: never had RC tags, so a normal retag+push is fine.
+          DH_REPO="docker.io/${DOCKERHUB_USERNAME}/proxmox-backup-server"
+          docker tag "${GHCR_REPO}:${SOURCE}" "${DH_REPO}:${TARGET}"
+          docker tag "${GHCR_REPO}:${SOURCE}" "${DH_REPO}:latest"
+          docker push "${DH_REPO}:${TARGET}"
+          docker push "${DH_REPO}:latest"
 
       - name: Create or Update GitHub Release
         if: steps.target.outputs.update_needed == 'true' || steps.target.outputs.promote_image == 'true'
@@ -297,7 +341,13 @@ jobs:
           # Build a changelog of commit subjects since the previous release.
           # Log against origin/develop so stable promotions show real commits
           # instead of the squash-merge line on main.
-          PREV_TAG=$(gh release list --limit 20 --json tagName --jq '[.[] | select(.tagName != "v'"$VERSION"'")][0].tagName' 2>/dev/null || true)
+          # Anchor PREV_TAG to a tag whose commit is reachable from
+          # origin/develop. Stable tags live on main's squash commits and
+          # have no shared ancestry with develop, so --merged origin/develop
+          # excludes them naturally and picks the latest develop-side tag
+          # (the previous RC or dev build).
+          PREV_TAG=$(git tag --merged origin/develop --sort=-creatordate \
+            | grep -v "^v${VERSION}\$" | head -n 1)
           CHANGES=""
           if [ -n "$PREV_TAG" ]; then
             CHANGES=$(git log "${PREV_TAG}..origin/develop" --pretty=format:"- %s" 2>/dev/null \
@@ -364,9 +414,15 @@ jobs:
             echo "Release $TAG exists. Updating notes..."
             gh release edit "$TAG" --notes-file "$NOTES_FILE" $PRERELEASE_FLAG
           else
-            echo "Creating new release $TAG..."
+            # Pin the tag to the current commit (the bot's version-bump
+            # commit on the running branch). Without --target, gh defaults
+            # to the default branch's HEAD, which placed RC tags on main
+            # instead of develop and broke changelog anchoring.
+            TARGET_SHA=$(git rev-parse HEAD)
+            echo "Creating new release $TAG at $TARGET_SHA..."
             gh release create "$TAG" \
               $PRERELEASE_FLAG \
+              --target "$TARGET_SHA" \
               --title "Proxmox Backup Server ${VERSION} for MicroOS" \
               --notes-file "$NOTES_FILE"
           fi
@@ -382,8 +438,14 @@ jobs:
           RC_TAG="v${CURRENT_BASE}-RC"
           
           if gh release view "$RC_TAG" >/dev/null 2>&1; then
+            # Delete the GitHub Release entry but keep the underlying git
+            # tag. The tag is needed as a changelog anchor for the next RC
+            # build on develop (the next PREV_TAG selection is `git tag
+            # --merged origin/develop`). Without it, the next RC's notes
+            # would fall back to a much older tag and re-list commits that
+            # were already shipped in this stable.
             echo "Finalizing release on main. Deleting matched RC: $RC_TAG"
-            gh release delete "$RC_TAG" --yes --cleanup-tag
+            gh release delete "$RC_TAG" --yes
           fi
 
       - name: Cleanup RC Container Image

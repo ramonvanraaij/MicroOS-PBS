@@ -18,7 +18,7 @@ This setup builds a Podman image for PBS using official Proxmox repositories and
 *   **⚙️ Systemd Integration:** Native management via Podman Quadlet (`.container` units).
 *   **🛠️ Dual Build Strategy:** Supports direct host builds (`build_on_microos.bash`) and automated GitHub Actions.
 *   **📂 NFS Support:** Interactive setup for NFS-backed datastores with automated systemd mount generation.
-*   **📦 Registry Support:** Official builds published to GitHub Container Registry (GHCR).
+*   **📦 Registry Support:** Official builds published to both [GitHub Container Registry (GHCR)](https://github.com/ramonvanraaij/MicroOS-PBS/pkgs/container/proxmox-backup-server) and [Docker Hub](https://hub.docker.com/r/ramonvanraaij/proxmox-backup-server).
 
 ---
 

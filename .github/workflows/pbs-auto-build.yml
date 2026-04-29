@@ -345,8 +345,10 @@ jobs:
           # origin/develop. Stable tags live on main's squash commits and
           # have no shared ancestry with develop, so --merged origin/develop
           # excludes them naturally and picks the latest develop-side tag
-          # (the previous RC or dev build).
-          PREV_TAG=$(git tag --merged origin/develop --sort=-creatordate \
+          # (the previous RC or dev build). Version sort is used instead of
+          # creatordate to avoid non-deterministic ordering caused by annotated
+          # vs lightweight tag object dates.
+          PREV_TAG=$(git tag --merged origin/develop --sort=-version:refname \
             | grep -v "^v${VERSION}\$" | head -n 1)
           CHANGES=""
           if [ -n "$PREV_TAG" ]; then

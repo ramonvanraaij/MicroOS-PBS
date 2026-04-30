@@ -349,7 +349,7 @@ jobs:
           # creatordate to avoid non-deterministic ordering caused by annotated
           # vs lightweight tag object dates.
           PREV_TAG=$(git tag --merged origin/develop --sort=-version:refname \
-            | grep -v "^v${VERSION}\$" | head -n 1)
+            | grep -vE "^v${VERSION}(-RC)?\$" | head -n 1)
           CHANGES=""
           if [ -n "$PREV_TAG" ]; then
             CHANGES=$(git log "${PREV_TAG}..origin/develop" --pretty=format:"- %s" 2>/dev/null \

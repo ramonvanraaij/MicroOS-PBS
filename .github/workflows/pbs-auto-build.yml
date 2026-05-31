@@ -452,7 +452,7 @@ jobs:
 
       - name: Cleanup Old Development Builds
         if: steps.branch.outputs.name == 'develop'
-        uses: snok/container-retention-policy@v3.0.1
+        uses: snok/container-retention-policy@v3.1.0
         with:
           image-names: proxmox-backup-server
           account: user

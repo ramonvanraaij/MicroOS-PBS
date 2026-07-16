@@ -1,3 +1,13 @@
+# proxmox-backup-server.container
+# =================================================================
+# Podman Quadlet unit for Proxmox Backup Server on OpenSUSE MicroOS
+#
+# Copyright (c) 2026 Rámon van Raaij
+# SPDX-License-Identifier: Apache-2.0
+# License: Apache License 2.0 - see LICENSE.md for full terms and upstream notes
+# Author: Rámon van Raaij | Bluesky: @ramonvanraaij.nl | GitHub: https://github.com/ramonvanraaij | Website: https://ramon.vanraaij.eu
+# =================================================================
+
 [Unit]
 Description=Proxmox Backup Server
 After=network-online.target local-fs.target

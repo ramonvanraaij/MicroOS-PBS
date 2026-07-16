@@ -4,6 +4,7 @@
 [![Auto-Build PBS Container](https://github.com/ramonvanraaij/MicroOS-PBS/actions/workflows/pbs-auto-build.yml/badge.svg?style=flat-square)](https://github.com/ramonvanraaij/MicroOS-PBS/actions/workflows/pbs-auto-build.yml)
 [![GitHub Container Registry](https://ghcr-badge.egpl.dev/ramonvanraaij/proxmox-backup-server/latest_tag?trim=major&label=GHCR&color=%23007ec6)](https://github.com/ramonvanraaij/MicroOS-PBS/pkgs/container/proxmox-backup-server)
 [![Docker Hub](https://img.shields.io/docker/v/ramonvanraaij/proxmox-backup-server?sort=date&logo=docker&style=flat-square&label=Docker%20Hub)](https://hub.docker.com/r/ramonvanraaij/proxmox-backup-server)
+[![License](https://img.shields.io/badge/License-Apache--2.0%20%2B%20AGPL--3.0-blue?style=flat-square)](LICENSE.md)
 
 This repository provides a specialized build system and deployment configuration for running **Proxmox Backup Server (PBS)** as a high-performance container. While optimized for **OpenSUSE MicroOS** using **Podman Quadlets**, it is fully compatible with standard **Docker** and **Podman (Compose)** environments.
 
@@ -128,6 +129,16 @@ The project includes a robust GitHub Actions workflow (`.github/workflows/pbs-au
 1.  **Monitors Upstream:** Checks the Proxmox APT repository daily for new PBS package versions.
 2.  **Auto-Builds:** Creates Release Candidate (`-RC`) images on the `develop` branch when a new version is detected.
 3.  **Distributes:** Builds, tests, and pushes images to [GHCR](https://github.com/ramonvanraaij/MicroOS-PBS/pkgs/container/proxmox-backup-server). Stable releases are also published to [Docker Hub](https://hub.docker.com/r/ramonvanraaij/proxmox-backup-server).
+
+---
+
+## 📜 License
+
+*   **🧰 Build system & deployment scripts** (original contributions by Rámon van Raaij, 2026): [Apache License 2.0](LICENSE.md).
+*   **🛡️ Upstream portions** from [ayufan/pve-backup-server-dockerfiles](https://github.com/ayufan/pve-backup-server-dockerfiles) (published without a formal license): redistributed in good faith under a notice-and-takedown model - see the upstream contributions note in [`LICENSE.md`](LICENSE.md).
+*   **⚖️ Proxmox Backup Server itself**: [AGPL-3.0-or-later](https://www.gnu.org/licenses/agpl-3.0.html) by Proxmox Server Solutions GmbH - complete corresponding source at [git.proxmox.com](https://git.proxmox.com/).
+
+See [`LICENSE.md`](LICENSE.md) for the full licensing structure, including the complete Apache 2.0 text.
 
 ---
 

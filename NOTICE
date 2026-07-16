@@ -1,0 +1,16 @@
+MicroOS-PBS
+Copyright 2026 Rámon van Raaij (https://ramon.vanraaij.eu)
+
+The original contributions to this project are licensed under the
+Apache License, Version 2.0 (see LICENSE.md).
+
+Portions of this project originated from
+ayufan/pve-backup-server-dockerfiles by Kamil Trzciński (2020-2025)
+and other upstream contributors; those portions remain under their
+respective authors' copyright. See the "Note on Upstream
+Contributions" in LICENSE.md.
+
+The container images produced by this project install and distribute
+Proxmox Backup Server, licensed under the GNU Affero General Public
+License, version 3 or later, by Proxmox Server Solutions GmbH.
+Complete corresponding source: https://git.proxmox.com/

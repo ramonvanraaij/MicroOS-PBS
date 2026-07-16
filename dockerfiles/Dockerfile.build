@@ -8,7 +8,7 @@ LABEL org.opencontainers.image.authors="Rámon van Raaij (https://ramon.vanraaij
 LABEL org.opencontainers.image.url="https://github.com/ramonvanraaij/MicroOS-PBS"
 LABEL org.opencontainers.image.source="https://github.com/ramonvanraaij/MicroOS-PBS"
 LABEL org.opencontainers.image.vendor="Rámon van Raaij"
-LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.licenses="Apache-2.0 AND AGPL-3.0-or-later"
 
 ARG DEBIAN_FRONTEND=noninteractive
 

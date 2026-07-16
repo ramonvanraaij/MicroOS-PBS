@@ -4,7 +4,8 @@
 # Detect the latest upstream Proxmox Backup Server package version
 #
 # Copyright (c) 2026 Rámon van Raaij
-# License: MIT
+# SPDX-License-Identifier: Apache-2.0
+# License: Apache License 2.0 - see LICENSE.md for full terms and upstream notes
 # Author: Rámon van Raaij | Bluesky: @ramonvanraaij.nl | GitHub: https://github.com/ramonvanraaij | Website: https://ramon.vanraaij.eu
 #
 # This script queries the Proxmox APT repository to determine the

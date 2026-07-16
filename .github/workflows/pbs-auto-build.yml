@@ -109,6 +109,15 @@ jobs:
               TARGET_VERSION=$(echo "$CURRENT_VERSION" | sed -E 's/-RC$//')
               IS_PRERELEASE="false"
               if [ "$CURRENT_VERSION" != "$TARGET_VERSION" ]; then
+                # Guard: if the stable tag already exists, VERSION has
+                # regressed to -RC (typically a develop merge that kept
+                # develop's VERSION). Refuse to re-promote instead of
+                # silently retagging an already-released version.
+                if git rev-parse -q --verify "refs/tags/v${TARGET_VERSION}" >/dev/null; then
+                  echo "Error: stable tag v${TARGET_VERSION} already exists but VERSION is ${CURRENT_VERSION}."
+                  echo "Refusing to re-promote. Reset VERSION on main to v${TARGET_VERSION} (or bump properly)."
+                  exit 1
+                fi
                 UPDATE_REPO_VERSION="true"
                 BUILD_IMAGE="false"
                 PROMOTE_IMAGE="true"
@@ -222,7 +231,7 @@ jobs:
             org.opencontainers.image.documentation=https://github.com/ramonvanraaij/MicroOS-PBS#readme
             org.opencontainers.image.authors=Rámon van Raaij (https://ramon.vanraaij.eu)
             org.opencontainers.image.vendor=Rámon van Raaij
-            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.licenses=Apache-2.0 AND AGPL-3.0-or-later
             org.opencontainers.image.base.name=docker.io/library/debian:trixie-slim
           tags: |
             pbs-test-ci:latest
@@ -410,6 +419,12 @@ jobs:
             echo "- [Docker Hub Registry](https://hub.docker.com/r/${{ secrets.DOCKERHUB_USERNAME }}/proxmox-backup-server)"
             echo "- [Upstream Changelog](https://git.proxmox.com/?p=proxmox-backup.git;a=shortlog;h=refs/tags/v${BASE_VERSION})"
             echo "- [Setup & Documentation](https://github.com/${{ github.repository }}#readme)"
+            echo ""
+            echo "### ⚖️ Licensing"
+            echo ""
+            echo "This image distributes **Proxmox Backup Server** (AGPL-3.0-or-later, Proxmox Server Solutions GmbH) - complete corresponding source: [git.proxmox.com](https://git.proxmox.com/)."
+            echo ""
+            echo "Build system and deployment scripts: Apache-2.0 - see [LICENSE.md](https://github.com/${{ github.repository }}/blob/main/LICENSE.md)."
           } > "$NOTES_FILE"
 
           if gh release view "$TAG" >/dev/null 2>&1; then

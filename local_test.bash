@@ -67,7 +67,7 @@ for c in "$CONTAINER_NAME" "$CLIENT_NAME"; do
 done
 
 echo ">> Starting PBS Server $CONTAINER_NAME..."
-# No DNS search domain: PBS names its self-signed cert <hostname>.<search domain>, which must fit in 64 characters.
+# --dns-search=. removes the search domain: PBS names its self-signed cert <hostname>.<search domain>, max 64 characters.
 $DOCKER_CMD run -d \
     --name "$CONTAINER_NAME" \
     --net "$NETWORK_NAME" \

@@ -67,12 +67,14 @@ for c in "$CONTAINER_NAME" "$CLIENT_NAME"; do
 done
 
 echo ">> Starting PBS Server $CONTAINER_NAME..."
+# No DNS search domain: PBS names its self-signed cert <hostname>.<search domain>, which must fit in 64 characters.
 $DOCKER_CMD run -d \
     --name "$CONTAINER_NAME" \
     --net "$NETWORK_NAME" \
     --pull=never \
     -p 8007:8007 \
     --tmpfs /run \
+    --dns-search=. \
     -v "$TEST_DIR/config:/etc/proxmox-backup" \
     -v "$TEST_DIR/data:/var/lib/proxmox-backup" \
     -v "$TEST_DIR/logs:/var/log/proxmox-backup" \

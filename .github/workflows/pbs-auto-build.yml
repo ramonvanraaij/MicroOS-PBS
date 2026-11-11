@@ -246,7 +246,7 @@ jobs:
                 docker push "$tag"
               done
 
-      # Runs after build, test and push, so a failed build, test or push leaves no VERSION bump behind.
+      # On develop, runs after build, test and push, so a failed build, test or push leaves no VERSION bump behind.
       - name: Update Repo Version
         if: steps.target.outputs.update_repo_version == 'true'
         run: |

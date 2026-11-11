@@ -110,13 +110,13 @@ done
 
 if [ -z "$FINGERPRINT" ]; then
     echo ">> Error: Could not retrieve server fingerprint."
-    # Failure diagnostics, each bounded to 30 s: container state, cert-info output with stderr, and logs.
+    # Failure diagnostics, each capped at 35 s by timeout: container state, cert-info output with stderr, and logs.
     echo ">> Container state:"
-    timeout 30 $DOCKER_CMD inspect -f '{{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}' "$CONTAINER_NAME" || true
+    timeout -k 5 30 $DOCKER_CMD inspect -f '{{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}' "$CONTAINER_NAME" || true
     echo ">> cert info, one more attempt after the wait ended (with stderr):"
-    timeout 30 $DOCKER_CMD exec "$CONTAINER_NAME" proxmox-backup-manager cert info 2>&1 || true
+    timeout -k 5 30 $DOCKER_CMD exec "$CONTAINER_NAME" proxmox-backup-manager cert info 2>&1 || true
     echo ">> Container logs (last 200 lines):"
-    timeout 30 $DOCKER_CMD logs --tail 200 "$CONTAINER_NAME" 2>&1 || true
+    timeout -k 5 30 $DOCKER_CMD logs --tail 200 "$CONTAINER_NAME" 2>&1 || true
     exit 1
 fi
 echo ">> Server Fingerprint: $FINGERPRINT"

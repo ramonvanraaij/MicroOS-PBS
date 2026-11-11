@@ -110,6 +110,13 @@ done
 
 if [ -z "$FINGERPRINT" ]; then
     echo ">> Error: Could not retrieve server fingerprint."
+    # Failure diagnostics: print container state, cert-info output with stderr, and logs.
+    echo ">> Container state:"
+    $DOCKER_CMD inspect -f '{{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}' "$CONTAINER_NAME" || true
+    echo ">> cert info (with stderr):"
+    $DOCKER_CMD exec "$CONTAINER_NAME" proxmox-backup-manager cert info 2>&1 || true
+    echo ">> Container logs (last 200 lines):"
+    $DOCKER_CMD logs --tail 200 "$CONTAINER_NAME" 2>&1 || true
     exit 1
 fi
 echo ">> Server Fingerprint: $FINGERPRINT"

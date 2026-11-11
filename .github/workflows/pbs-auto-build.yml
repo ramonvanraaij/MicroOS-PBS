@@ -246,6 +246,21 @@ jobs:
                 docker push "$tag"
               done
 
+      # Runs after build, test and push, so a failed build, test or push leaves no VERSION bump behind.
+      - name: Update Repo Version
+        if: steps.target.outputs.update_repo_version == 'true'
+        run: |
+          echo "v${{ steps.target.outputs.version }}" > VERSION
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: Update version to ${{ steps.target.outputs.version }}"
+            git push
+          else
+            echo "No version change to commit."
+          fi
+
       - name: Promote RC Image to Stable
         if: steps.target.outputs.promote_image == 'true'
         env:
@@ -305,21 +320,6 @@ jobs:
           docker tag "${GHCR_REPO}:${SOURCE}" "${DH_REPO}:latest"
           docker push "${DH_REPO}:${TARGET}"
           docker push "${DH_REPO}:latest"
-
-      # Runs after build, test, push and promotion so a failed run never pushes a VERSION bump.
-      - name: Update Repo Version
-        if: steps.target.outputs.update_repo_version == 'true'
-        run: |
-          echo "v${{ steps.target.outputs.version }}" > VERSION
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add VERSION
-          if ! git diff --cached --quiet; then
-            git commit -m "chore: Update version to ${{ steps.target.outputs.version }}"
-            git push
-          else
-            echo "No version change to commit."
-          fi
 
       - name: Create or Update GitHub Release
         if: steps.target.outputs.update_needed == 'true' || steps.target.outputs.promote_image == 'true'
